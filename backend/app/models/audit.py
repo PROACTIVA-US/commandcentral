@@ -84,7 +84,7 @@ class AuditEntry(Base):
 
     # Details
     rationale = Column(Text, nullable=True)
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)
     side_effects = Column(JSON, default=list)  # What else happened
 
     # Timestamps

@@ -1,0 +1,210 @@
+---
+name: model-version-check
+version: 1.0.0
+domain: commandcentral
+category: arena
+description: Ensure Arena uses the most advanced available model from each provider
+
+triggers:
+  - pattern: "arena|ai review|multi-model|deliberation"
+  - explicit: "latest models|upgrade models|check versions"
+
+context_required:
+  api_reference:
+    - /api/v1/llm/models
+    - /api/v1/llm/providers
+
+# Model tier definitions (per Arena consensus)
+capability_tiers:
+  flagship:
+    description: "Highest capability, may have API instability"
+    use_for:
+      - research
+      - exploration
+      - complex_reasoning
+      - architecture_review
+    auto_upgrade: opt_in  # User must explicitly enable
+
+  stable:
+    description: "Validated, production-ready versions"
+    use_for:
+      - production_pipelines
+      - user_facing_sessions
+      - standard_arena
+    default: true  # Arena defaults to stable tier
+
+  legacy:
+    description: "Deprecated but available for compatibility"
+    use_for:
+      - regression_testing
+      - backward_compatibility
+      - cost_sensitive_tasks
+
+# Provider model mappings (maintained by platform team)
+provider_tiers:
+  anthropic:
+    flagship: claude-opus-4-5-20251101
+    stable: claude-sonnet-4-5-20250929
+    legacy: claude-haiku-4-5-20251001
+
+  openai:
+    flagship: gpt-5.2
+    stable: gpt-5
+    legacy: gpt-4.1
+    reasoning:
+      flagship: o3
+      stable: o4-mini
+
+  grok:
+    flagship: grok-3
+    stable: grok-2
+
+  gemini:
+    flagship: gemini-3-pro-preview
+    stable: gemini-2.5-pro
+    legacy: gemini-2.5-flash
+
+  moonshot:
+    flagship: kimi-2.5
+    stable: moonshot-v1-128k
+
+  zai:
+    flagship: glm-4.7
+    stable: glm-4.7-flash
+
+# Version check policy
+version_policy:
+  arena_default_tier: stable
+  allow_flagship_opt_in: true
+  warn_on_legacy: true
+  auto_upgrade_enabled: false  # Per Arena recommendation: opt-in only
+
+instructions:
+  - step: 1
+    action: "Query available models from /api/v1/llm/models"
+
+  - step: 2
+    action: "For each provider in session config, identify current tier"
+    compare: "session model vs provider_tiers mapping"
+
+  - step: 3
+    action: "Check if using latest for intended tier"
+    rules:
+      using_flagship: "No action needed"
+      using_stable_want_flagship: "Suggest upgrade (opt-in)"
+      using_legacy: "Warn and suggest upgrade"
+      using_unknown: "Validate model exists, warn if deprecated"
+
+  - step: 4
+    action: "Generate version report"
+    include:
+      - current_model_per_provider
+      - tier_classification
+      - newer_available (if any)
+      - recommendation
+
+  - step: 5
+    action: "Apply upgrade policy"
+    if: auto_upgrade_enabled
+    then: "Replace models with tier-appropriate versions"
+    else: "Present recommendations, require user confirmation"
+
+outputs:
+  - type: version_report
+    format: |
+      ═══════════════════════════════════════════════════
+      MODEL VERSION CHECK
+      ═══════════════════════════════════════════════════
+
+      Session tier: {session_tier}
+
+      {foreach provider}
+      {provider_name}:
+        Current: {current_model} ({current_tier})
+        {if upgrade_available}
+        ⬆ Upgrade available: {recommended_model} ({recommended_tier})
+        {else}
+        ✓ Using latest for tier
+        {/if}
+
+      {/foreach}
+      ═══════════════════════════════════════════════════
+
+      {if upgrades_available}
+      Upgrades available. Apply? [y/n/select]
+      {else}
+      ✓ All models are at latest for {session_tier} tier
+      {/if}
+
+upgrade_flow:
+  confirm_before_upgrade: true
+  reasons_shown:
+    - capability_improvements
+    - known_issues_in_current
+    - cost_changes (if applicable)
+  rollback_option: true
+
+warnings:
+  using_legacy:
+    message: "Model {model} is deprecated. Consider upgrading to {stable_version}."
+    severity: warning
+
+  flagship_instability:
+    message: "Flagship models may have API changes. Recommended for research/exploration only."
+    severity: info
+
+  unknown_model:
+    message: "Model {model} not in tier registry. Verify it exists and is supported."
+    severity: error
+
+validation:
+  - check: "all_models_exist"
+    description: "Verify all session models are valid and available"
+  - check: "tier_consistency"
+    description: "Warn if mixing flagship and legacy in same session"
+
+examples:
+  - input: "Check versions for Arena with gpt-4.1, claude-sonnet, grok-2"
+    output: |
+      ═══════════════════════════════════════════════════
+      MODEL VERSION CHECK
+      ═══════════════════════════════════════════════════
+
+      Session tier: stable
+
+      OpenAI:
+        Current: gpt-4.1 (legacy)
+        ⬆ Upgrade available: gpt-5 (stable) or gpt-5.2 (flagship)
+
+      Anthropic:
+        Current: claude-sonnet-4-5-20250929 (stable)
+        ✓ Using latest for tier
+
+      xAI:
+        Current: grok-2 (stable)
+        ⬆ Upgrade available: grok-3 (flagship)
+
+      ═══════════════════════════════════════════════════
+
+      Upgrades available. Apply? [y/n/select]
+
+  - input: "Use flagship models for architecture review"
+    output: |
+      ═══════════════════════════════════════════════════
+      MODEL VERSION CHECK
+      ═══════════════════════════════════════════════════
+
+      Session tier: flagship (opted-in)
+
+      OpenAI: gpt-5.2 ✓
+      Anthropic: claude-opus-4-5-20251101 ✓
+      xAI: grok-3 ✓
+
+      ═══════════════════════════════════════════════════
+      ✓ All models are at flagship tier
+
+tags:
+  - arena
+  - models
+  - versioning
+  - upgrade

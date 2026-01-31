@@ -1,0 +1,170 @@
+name: auth-frontend
+version: 1.0.0
+domain: commandcentral
+category: frontend
+description: |
+  Creates authentication UI components for CommandCentral including
+  login forms, registration forms, protected routes, and auth hooks.
+  Uses react-hook-form with zod validation and shadcn/ui components.
+
+triggers:
+  - pattern: "login page|login form|login UI"
+    weight: 100
+  - pattern: "register page|signup form|registration"
+    weight: 100
+  - pattern: "protected route|auth guard|route protection"
+    weight: 90
+  - pattern: "auth hook|useAuth|authentication hook"
+    weight: 85
+  - pattern: "logout|sign out"
+    weight: 70
+  - pattern: "auth|authentication"
+    weight: 50
+
+context_required:
+  api_reference:
+    - /api/v1/auth/login
+    - /api/v1/auth/register
+    - /api/v1/auth/me
+    - /api/v1/auth/logout
+  domain_models:
+    - User
+  patterns:
+    - react-hook-form
+    - zod-validation
+    - shadcn-ui
+    - zustand-persist
+  dependencies:
+    - react-hook-form
+    - zod
+    - "@hookform/resolvers"
+    - zustand
+
+outputs:
+  - type: store
+    path: src/stores/authStore.ts
+    description: Zustand store with user, token, isAuthenticated state
+  - type: hook
+    path: src/hooks/useAuth.ts
+    description: Auth hook wrapping authStore with login/logout methods
+  - type: page
+    path: src/pages/LoginPage.tsx
+    description: Login page with email/password form
+  - type: page
+    path: src/pages/RegisterPage.tsx
+    description: Registration page with name/email/password form
+  - type: component
+    path: src/components/auth/LoginForm.tsx
+    description: Login form with react-hook-form and zod validation
+  - type: component
+    path: src/components/auth/RegisterForm.tsx
+    description: Registration form with password confirmation
+  - type: component
+    path: src/components/auth/ProtectedRoute.tsx
+    description: Route wrapper that redirects unauthenticated users
+
+preconditions:
+  - check: vite_react_initialized
+    message: "Frontend project must be initialized with Vite + React + TypeScript"
+  - check: shadcn_installed
+    message: "shadcn/ui must be installed and configured"
+  - check: zustand_installed
+    message: "Zustand must be installed"
+
+instructions:
+  - step: 1
+    action: Create authStore with Zustand
+    details: |
+      Create src/stores/authStore.ts:
+      - Interface AuthState with user, token, isAuthenticated
+      - Actions: login, logout, setUser, refreshToken
+      - Use persist middleware to save token to localStorage
+      - Create selector hooks: useIsAuthenticated, useUser, useToken
+
+  - step: 2
+    action: Create useAuth hook
+    details: |
+      Create src/hooks/useAuth.ts:
+      - Import authStore and commandCentralClient
+      - Provide login(email, password) that calls API and updates store
+      - Provide logout() that clears store and navigates to /login
+      - Provide register(email, password, name) that creates account
+
+  - step: 3
+    action: Create LoginForm component
+    details: |
+      Create src/components/auth/LoginForm.tsx:
+      - Use react-hook-form with zodResolver
+      - Define loginSchema with email (valid email) and password (min 8)
+      - Use shadcn Input, Button, Label components
+      - Show loading state during submission
+      - Display API errors using FormMessage or toast
+
+  - step: 4
+    action: Create RegisterForm component
+    details: |
+      Create src/components/auth/RegisterForm.tsx:
+      - Fields: name (optional), email, password, confirmPassword
+      - Validate password === confirmPassword
+      - Call register API on submit
+      - Redirect to /login with success message
+
+  - step: 5
+    action: Create LoginPage
+    details: |
+      Create src/pages/LoginPage.tsx:
+      - Center LoginForm in Card component
+      - Add logo or title at top
+      - Link to /register for new users
+      - Redirect to /dashboard on successful login
+      - If already authenticated, redirect to /dashboard
+
+  - step: 6
+    action: Create RegisterPage
+    details: |
+      Create src/pages/RegisterPage.tsx:
+      - Center RegisterForm in Card component
+      - Link to /login for existing users
+      - Redirect to /login on successful registration
+
+  - step: 7
+    action: Create ProtectedRoute component
+    details: |
+      Create src/components/auth/ProtectedRoute.tsx:
+      - Check authStore.isAuthenticated
+      - If not authenticated, redirect to /login with returnUrl
+      - Show loading spinner while checking initial auth state
+      - Use Outlet for nested routes
+
+validation:
+  - check: typescript_compiles
+    config:
+      strict: true
+  - check: no_eslint_errors
+    config:
+      extends: ["react-app"]
+  - check: components_render
+    config:
+      test_ids: ["login-form", "register-form", "protected-route"]
+  - check: api_integration
+    config:
+      endpoints:
+        - POST /api/v1/auth/login
+        - POST /api/v1/auth/register
+        - GET /api/v1/auth/me
+
+examples:
+  - input: "Create a login page with email and password"
+    notes: |
+      - Use shadcn Card, Input, Button, Label
+      - Add "Forgot password?" link (placeholder)
+      - Show validation errors inline
+
+  - input: "Protect dashboard from unauthenticated access"
+    notes: |
+      - Wrap in ProtectedRoute component
+      - Store return URL for post-login redirect
+
+related_skills:
+  - dashboard-frontend
+  - projects-frontend

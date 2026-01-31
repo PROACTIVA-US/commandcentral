@@ -1,0 +1,179 @@
+name: dashboard-frontend
+version: 1.0.0
+domain: commandcentral
+category: frontend
+description: |
+  Creates the main dashboard page for CommandCentral with cross-service
+  statistics, activity feed, and quick actions. Fetches data from all
+  4 microservices (CommandCentral, PIPELZR, VISLZR, IDEALZR).
+
+triggers:
+  - pattern: "dashboard|home page|main page"
+    weight: 100
+  - pattern: "cross-service stats|service statistics"
+    weight: 90
+  - pattern: "activity feed|recent activity"
+    weight: 85
+  - pattern: "overview|summary"
+    weight: 70
+
+context_required:
+  api_reference:
+    - /api/v1/projects
+    - /api/v1/events
+  domain_models:
+    - Project
+    - AuditEntry
+  patterns:
+    - tanstack-query
+    - shadcn-ui
+    - zustand
+  dependencies:
+    - "@tanstack/react-query"
+    - date-fns
+    - lucide-react
+
+outputs:
+  - type: page
+    path: src/pages/DashboardPage.tsx
+    description: Main dashboard with widget grid
+  - type: store
+    path: src/stores/projectStore.ts
+    description: Zustand store for project state
+  - type: component
+    path: src/components/projects/ProjectSelector.tsx
+    description: Dropdown to select active project
+  - type: component
+    path: src/components/dashboard/CrossServiceStatsWidget.tsx
+    description: Stats cards fetching from all services
+  - type: component
+    path: src/components/dashboard/StatCard.tsx
+    description: Individual stat card with icon and value
+  - type: component
+    path: src/components/dashboard/RecentActivityWidget.tsx
+    description: Activity feed showing recent events
+  - type: component
+    path: src/components/activity/ActivityItem.tsx
+    description: Single activity item with icon and timestamp
+  - type: component
+    path: src/components/dashboard/QuickActionsWidget.tsx
+    description: Common actions like create project, new decision
+
+preconditions:
+  - check: auth_implemented
+    message: "Authentication must be implemented first"
+  - check: api_clients_exist
+    message: "Service API clients must exist"
+
+instructions:
+  - step: 1
+    action: Create projectStore
+    details: |
+      Create src/stores/projectStore.ts:
+      - Interface: projects, activeProjectId, isLoading
+      - Actions: setProjects, setActiveProject, fetchProjects
+      - Persist activeProjectId to localStorage
+      - Selector hooks: useActiveProject, useProjects
+
+  - step: 2
+    action: Create ProjectSelector component
+    details: |
+      Create src/components/projects/ProjectSelector.tsx:
+      - Use shadcn Select component
+      - List projects from projectStore
+      - Show project state badge
+      - On change, update projectStore.activeProjectId
+      - Include "All Projects" option
+
+  - step: 3
+    action: Create StatCard component
+    details: |
+      Create src/components/dashboard/StatCard.tsx:
+      - Props: icon, title, value, trend, onClick
+      - Use shadcn Card with hover effect
+      - Show skeleton while loading
+      - Display trend indicator (up/down arrow with color)
+
+  - step: 4
+    action: Create CrossServiceStatsWidget
+    details: |
+      Create src/components/dashboard/CrossServiceStatsWidget.tsx:
+      - Use useQueries for parallel fetching from all 4 services:
+        - Active goals count from IDEALZR
+        - Running tasks count from PIPELZR
+        - Active pipelines count from PIPELZR
+        - Open hypotheses count from IDEALZR
+      - Render 4 StatCard components in a row
+      - Handle errors gracefully (show "N/A")
+      - Auto-refresh every 30 seconds
+
+  - step: 5
+    action: Create ActivityItem component
+    details: |
+      Create src/components/activity/ActivityItem.tsx:
+      - Props: event object with type, description, timestamp, entityLink
+      - Icon based on event_type (from lucide-react)
+      - Relative timestamp using date-fns formatDistanceToNow
+      - Clickable to navigate to entity
+
+  - step: 6
+    action: Create RecentActivityWidget
+    details: |
+      Create src/components/dashboard/RecentActivityWidget.tsx:
+      - Fetch from CommandCentral /api/v1/events
+      - Filter by active project if selected
+      - Show last 10 events
+      - Include "View all" link
+      - Show skeleton while loading
+
+  - step: 7
+    action: Create QuickActionsWidget
+    details: |
+      Create src/components/dashboard/QuickActionsWidget.tsx:
+      - Common actions as buttons:
+        - Create Project
+        - New Decision
+        - Start Pipeline
+        - Add Goal
+      - Each opens respective modal or navigates
+
+  - step: 8
+    action: Create DashboardPage
+    details: |
+      Create src/pages/DashboardPage.tsx:
+      - Header with "Dashboard" title and ProjectSelector
+      - Stats row: CrossServiceStatsWidget
+      - Main grid (responsive):
+        - Left column: GoalsSummaryWidget, HypothesesWidget (placeholders)
+        - Center: TasksSummaryWidget, PipelineStatusWidget (placeholders)
+        - Right: RecentActivityWidget, QuickActionsWidget
+      - Use CSS Grid with responsive breakpoints
+
+validation:
+  - check: typescript_compiles
+    config:
+      strict: true
+  - check: queries_configured
+    config:
+      verify_query_keys: true
+  - check: responsive_layout
+    config:
+      breakpoints: [640, 768, 1024, 1280]
+
+examples:
+  - input: "Create dashboard with stats from all services"
+    notes: |
+      - Handle service unavailability gracefully
+      - Show loading skeletons
+      - Auto-refresh stats
+
+  - input: "Add activity feed to dashboard"
+    notes: |
+      - Use relative timestamps
+      - Link to entity details
+      - Support project filtering
+
+related_skills:
+  - auth-frontend
+  - projects-frontend
+  - governance-frontend

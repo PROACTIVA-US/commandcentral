@@ -1,0 +1,92 @@
+---
+name: arena-preflight-check
+version: 1.0.0
+domain: commandcentral
+category: operations
+description: Validate AI provider availability before launching Arena sessions
+
+triggers:
+  - pattern: "arena|multi-model|ai review|deliberation"
+  - pattern: "test providers|check availability"
+
+context_required:
+  api_reference:
+    - /api/v1/llm/providers
+    - /api/v1/llm/complete
+  domain_models:
+    - LLMProvider
+    - ArenaSession
+
+preconditions:
+  - check: backend_running
+    endpoint: /api/v1/health
+  - check: providers_configured
+    endpoint: /api/v1/llm/providers
+
+instructions:
+  - step: 1
+    action: "Get list of intended providers for the Arena session"
+    notes: "User should specify which models (e.g., Claude Opus, GPT-5.2, Grok-3)"
+
+  - step: 2
+    action: "For each provider, send a minimal test completion"
+    request:
+      endpoint: POST /api/v1/llm/complete
+      body:
+        model: "{model_id}"
+        prompt: "Respond with exactly one word: Ready"
+        max_tokens: 10
+    timeout_seconds: 30
+
+  - step: 3
+    action: "Collect results and report availability"
+    output:
+      - provider_name
+      - model_id
+      - status: ready|failed|timeout
+      - latency_ms
+      - error_message (if failed)
+
+  - step: 4
+    action: "Determine if Arena can proceed"
+    rules:
+      - "If all providers ready: proceed"
+      - "If some failed: offer substitutes or proceed with available"
+      - "If all failed: abort and troubleshoot"
+
+outputs:
+  - type: report
+    format: |
+      AI ARENA PREFLIGHT CHECK
+      ========================
+      {foreach provider}
+      {status_icon} {name} ({model})
+        Latency: {latency_ms}ms
+      {/foreach}
+
+      RESULT: {ready_count}/{total_count} providers ready
+
+validation:
+  - check: "at_least_two_providers_ready"
+    description: "Arena requires minimum 2 working providers for meaningful deliberation"
+
+examples:
+  - input: "Set up Arena with Opus, GPT-5.2, Grok-3, and Kimi-2.5"
+    output: |
+      ✓ Claude Opus 4.5 (2048ms)
+      ✓ GPT-5.2 (1606ms)
+      ✓ Grok 3 (1084ms)
+      ✗ Kimi 2.5 (401 Unauthorized)
+
+      3/4 providers ready. Proceed with available providers?
+
+  - input: "Test all frontier models"
+    output: |
+      Testing 6 providers...
+      [Results for each]
+
+tags:
+  - arena
+  - preflight
+  - validation
+  - multi-model

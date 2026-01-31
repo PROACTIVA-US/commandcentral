@@ -74,7 +74,7 @@ class Decision(Base):
 
     # Tags and metadata
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)
 
     # Timestamps
     created_at = Column(DateTime, default=func.now())

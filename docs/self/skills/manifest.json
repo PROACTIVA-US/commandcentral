@@ -1,0 +1,72 @@
+{
+  "version": "1.0.0",
+  "service": "commandcentral",
+  "port": 8000,
+  "description": "Governance layer skills for authentication, projects, decisions, and audit",
+  "skills": [
+    {
+      "name": "auth-frontend",
+      "file": "auth-frontend.yaml",
+      "category": "frontend",
+      "triggers": ["login", "register", "auth", "authentication", "protected route", "jwt"],
+      "description": "Authentication UI components: login, register, protected routes, auth hooks"
+    },
+    {
+      "name": "dashboard-frontend",
+      "file": "dashboard-frontend.yaml",
+      "category": "frontend",
+      "triggers": ["dashboard", "home page", "overview", "cross-service stats"],
+      "description": "Dashboard page with cross-service statistics and activity feed"
+    },
+    {
+      "name": "governance-frontend",
+      "file": "governance-frontend.yaml",
+      "category": "frontend",
+      "triggers": ["decisions", "governance", "audit", "state machine", "transition"],
+      "description": "Governance UI: decision cards, state transitions, audit log viewer"
+    },
+    {
+      "name": "projects-frontend",
+      "file": "projects-frontend.yaml",
+      "category": "frontend",
+      "triggers": ["project", "project list", "project settings", "team members"],
+      "description": "Project management UI: list, create, settings, team management"
+    },
+    {
+      "name": "arena-preflight-check",
+      "file": "arena-preflight-check.yaml",
+      "category": "operations",
+      "triggers": ["arena", "multi-model", "ai review", "test providers", "preflight"],
+      "description": "Validate AI provider availability before launching Arena sessions"
+    },
+    {
+      "name": "skill-discovery",
+      "file": "skill-discovery.yaml",
+      "category": "meta",
+      "bootstrap": true,
+      "triggers": ["*", "find skills", "what skill handles", "discover skills"],
+      "description": "Query KnowledgeBeast for relevant skills before task execution (bootstrap skill)"
+    },
+    {
+      "name": "model-availability-check",
+      "file": "model-availability-check.yaml",
+      "category": "arena",
+      "triggers": ["arena", "test models", "check availability", "preflight"],
+      "description": "Validate AI model availability with actual query/response before Arena sessions"
+    },
+    {
+      "name": "model-version-check",
+      "file": "model-version-check.yaml",
+      "category": "arena",
+      "triggers": ["arena", "latest models", "upgrade models", "check versions"],
+      "description": "Ensure Arena uses the most advanced available model from each provider"
+    }
+  ],
+  "shared_patterns": [
+    "react-hook-form",
+    "zod-validation",
+    "shadcn-ui",
+    "zustand-persist",
+    "tanstack-query"
+  ]
+}

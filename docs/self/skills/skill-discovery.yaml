@@ -1,0 +1,169 @@
+---
+name: skill-discovery
+version: 1.0.0
+domain: commandcentral
+category: meta
+description: Query KnowledgeBeast for relevant skills before task execution
+
+# This is a BOOTSTRAP skill - loaded at startup, not discovered
+bootstrap: true
+layer: 1
+
+triggers:
+  - pattern: "*"  # Can apply to any task
+  - explicit: "find skills for|what skill handles|discover skills"
+
+context_required:
+  api_reference:
+    - /api/v1/knowledge/search
+  domain_models:
+    - Skill
+    - KnowledgeDocument
+
+preconditions:
+  - check: kb_healthy
+    endpoint: /api/v1/knowledge/health
+
+# Tiered discovery strategy (per Arena consensus)
+discovery_tiers:
+  tier_0_hardcoded:
+    description: "Bootstrap skills - always available, never discovered"
+    skills:
+      - skill-discovery
+      - kb-query
+      - auth-validate
+    latency_budget_ms: 0
+
+  tier_1_cached:
+    description: "Common patterns with pre-computed skill mappings"
+    cache:
+      strategy: task-type-hash
+      ttl_hours: 24
+      invalidation:
+        - on: skill-registry-change
+        - on: manual-flush
+    patterns:
+      "login|auth|signin|session": [auth-frontend, session-management]
+      "dashboard|overview|stats": [dashboard-frontend]
+      "deploy|release|publish": [deployment-checklist]
+      "arena|multi-model|deliberation": [arena-preflight-check, model-availability-check]
+    latency_budget_ms: 50
+
+  tier_2_dynamic:
+    description: "Full KB query for novel/ambiguous tasks"
+    query_template: "skills related to: {task_description}"
+    max_results: 5
+    latency_budget_ms: 500
+    fallback_on_timeout: tier_1_cached
+
+# Injection decision matrix (per Arena consensus)
+injection_policy:
+  high_confidence:
+    threshold: 0.9
+    single_match: required
+    action: auto_inject
+    logging: always
+
+  medium_confidence:
+    threshold_min: 0.7
+    threshold_max: 0.9
+    action: auto_inject_top_with_alternatives
+    show_alternatives: true
+
+  low_confidence:
+    threshold_max: 0.7
+    action: present_options_require_selection
+
+  security_tagged:
+    action: always_require_approval
+    tags: [destructive, compliance, financial, pii]
+
+# What gets injected (summary by default, expand on demand)
+injection_format:
+  default: summary
+  summary_fields:
+    - name
+    - purpose
+    - required_inputs
+    - key_constraints
+  expand_on_demand:
+    - full_yaml
+    - examples
+    - related_skills
+
+instructions:
+  - step: 1
+    action: "Extract task intent and keywords from user request"
+
+  - step: 2
+    action: "Check tier_0 (hardcoded) - if match, return immediately"
+
+  - step: 3
+    action: "Check tier_1 (cached) - lookup by pattern hash"
+    cache_key: "task_intent_hash + repo_context + user_org"
+
+  - step: 4
+    action: "If no cache hit, query KnowledgeBeast (tier_2)"
+    request:
+      endpoint: POST /api/v1/knowledge/search
+      body:
+        query: "{task_description} skill capability"
+        source_type: skill
+        limit: 5
+
+  - step: 5
+    action: "Apply injection policy based on confidence scores"
+
+  - step: 6
+    action: "Log discovery attempt to audit trail"
+    audit_fields:
+      - task_description
+      - tier_used
+      - skills_discovered
+      - confidence_scores
+      - injection_decision
+      - user_override (if any)
+
+outputs:
+  - type: skill_recommendations
+    format: |
+      Discovered Skills:
+      {foreach skill}
+      - {name} (confidence: {score})
+        Purpose: {purpose}
+        {if selected}→ INJECTED{/if}
+      {/foreach}
+
+integration:
+  pipelzr:
+    description: "After discovery, PIPELZR validates against contract registry"
+    flow: "KB discovery → candidates → PIPELZR validation → execution"
+    note: "KB is assistive; PIPELZR is authoritative"
+
+validation:
+  - check: "discovered_skills_exist_in_registry"
+    description: "All KB-discovered skills must have valid contracts in PIPELZR"
+
+examples:
+  - input: "Build a login page with authentication"
+    tier_hit: tier_1_cached
+    pattern_match: "login|auth"
+    output: |
+      ✓ Cache hit: auth-frontend (0.95)
+      → Auto-injected: auth-frontend skill context
+
+  - input: "Create a new visualization for sales data"
+    tier_hit: tier_2_dynamic
+    output: |
+      Discovered Skills:
+      - data-visualization (0.82)
+      - chart-components (0.71)
+      - dashboard-frontend (0.65)
+
+      Select skill to use: [1/2/3/skip]
+
+tags:
+  - meta
+  - bootstrap
+  - discovery
+  - enforcement

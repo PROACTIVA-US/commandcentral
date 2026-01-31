@@ -1,12 +1,15 @@
 """
-CommandCentral - Governance & Truth State Service
+IDEALZR - Ideas & Strategic Intelligence Service
 
-The central authority for:
-- State machines and entity lifecycle
-- Permissions and authorization
-- Audit logging
-- Decision primitives
-- Cross-service coordination
+The strategic intelligence hub for:
+- Goals hierarchy and progress tracking
+- Hypotheses lifecycle management
+- Evidence collection and linking
+- Predictions and forecasting
+- Venture studio management
+- Ideas capture and development
+- Intelligence feed aggregation
+- Memory/claims with provenance tracking
 """
 
 from contextlib import asynccontextmanager
@@ -18,7 +21,16 @@ from .config import get_settings
 from .database import init_db, close_db
 
 # Import routers
-from .routers import auth, state_machine, decisions, events, projects, health
+from .routers import (
+    health,
+    goals,
+    hypotheses,
+    evidence,
+    forecasts,
+    ventures,
+    ideas,
+    memory,
+)
 
 # Import middleware
 from .middleware import (
@@ -54,7 +66,7 @@ structlog.configure(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
-    logger = structlog.get_logger("commandcentral.startup")
+    logger = structlog.get_logger("idealzr.startup")
     
     # Startup
     await logger.ainfo(
@@ -78,7 +90,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Governance & Truth State Service for CommandCentral Platform",
+    description="Ideas & Strategic Intelligence Service for CommandCentral Platform",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -105,11 +117,13 @@ app.add_middleware(
 
 # Register routers
 app.include_router(health.router, tags=["Health"])
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
-app.include_router(state_machine.router, prefix="/api/v1/state-machine", tags=["State Machine"])
-app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["Decisions"])
-app.include_router(events.router, prefix="/api/v1/events", tags=["Events"])
-app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
+app.include_router(goals.router, prefix="/api/v1/goals", tags=["Goals"])
+app.include_router(hypotheses.router, prefix="/api/v1/hypotheses", tags=["Hypotheses"])
+app.include_router(evidence.router, prefix="/api/v1/evidence", tags=["Evidence"])
+app.include_router(forecasts.router, prefix="/api/v1/forecasts", tags=["Forecasts"])
+app.include_router(ventures.router, prefix="/api/v1/ventures", tags=["Ventures"])
+app.include_router(ideas.router, prefix="/api/v1/ideas", tags=["Ideas"])
+app.include_router(memory.router, prefix="/api/v1/memory", tags=["Memory"])
 
 
 @app.get("/")
@@ -119,16 +133,18 @@ async def root():
         "service": settings.app_name,
         "version": settings.app_version,
         "status": "operational",
-        "description": "Governance & Truth State Service",
+        "description": "Ideas & Strategic Intelligence Service",
         "endpoints": {
             "health": "/health",
             "metrics": "/metrics",
             "docs": "/docs",
-            "auth": "/api/v1/auth",
-            "state_machine": "/api/v1/state-machine",
-            "decisions": "/api/v1/decisions",
-            "events": "/api/v1/events",
-            "projects": "/api/v1/projects",
+            "goals": "/api/v1/goals",
+            "hypotheses": "/api/v1/hypotheses",
+            "evidence": "/api/v1/evidence",
+            "forecasts": "/api/v1/forecasts",
+            "ventures": "/api/v1/ventures",
+            "ideas": "/api/v1/ideas",
+            "memory": "/api/v1/memory",
         },
     }
 

@@ -48,7 +48,7 @@ class EntityState(Base):
     allowed_transitions = Column(JSON, default=list)
 
     # Metadata
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)
 
     # Timestamps
     created_at = Column(DateTime, default=func.now())

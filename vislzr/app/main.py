@@ -1,12 +1,12 @@
 """
-CommandCentral - Governance & Truth State Service
+VISLZR - Visualization & Exploration Service
 
-The central authority for:
-- State machines and entity lifecycle
-- Permissions and authorization
-- Audit logging
-- Decision primitives
-- Cross-service coordination
+The visualization and exploration service for:
+- Canvas/graph visualization
+- Wander navigation
+- Node rendering
+- Exploration queries
+- Relationship visualization
 """
 
 from contextlib import asynccontextmanager
@@ -18,7 +18,7 @@ from .config import get_settings
 from .database import init_db, close_db
 
 # Import routers
-from .routers import auth, state_machine, decisions, events, projects, health
+from .routers import health, canvas, nodes, exploration
 
 # Import middleware
 from .middleware import (
@@ -54,7 +54,7 @@ structlog.configure(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
-    logger = structlog.get_logger("commandcentral.startup")
+    logger = structlog.get_logger("vislzr.startup")
     
     # Startup
     await logger.ainfo(
@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Governance & Truth State Service for CommandCentral Platform",
+    description="Visualization & Exploration Service for CommandCentral Platform",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -105,11 +105,9 @@ app.add_middleware(
 
 # Register routers
 app.include_router(health.router, tags=["Health"])
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
-app.include_router(state_machine.router, prefix="/api/v1/state-machine", tags=["State Machine"])
-app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["Decisions"])
-app.include_router(events.router, prefix="/api/v1/events", tags=["Events"])
-app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
+app.include_router(canvas.router, prefix="/api/v1/canvases", tags=["Canvases"])
+app.include_router(nodes.router, prefix="/api/v1/nodes", tags=["Nodes"])
+app.include_router(exploration.router, prefix="/api/v1/exploration", tags=["Exploration"])
 
 
 @app.get("/")
@@ -119,16 +117,14 @@ async def root():
         "service": settings.app_name,
         "version": settings.app_version,
         "status": "operational",
-        "description": "Governance & Truth State Service",
+        "description": "Visualization & Exploration Service",
         "endpoints": {
             "health": "/health",
             "metrics": "/metrics",
             "docs": "/docs",
-            "auth": "/api/v1/auth",
-            "state_machine": "/api/v1/state-machine",
-            "decisions": "/api/v1/decisions",
-            "events": "/api/v1/events",
-            "projects": "/api/v1/projects",
+            "canvases": "/api/v1/canvases",
+            "nodes": "/api/v1/nodes",
+            "exploration": "/api/v1/exploration",
         },
     }
 

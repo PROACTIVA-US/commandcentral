@@ -1,12 +1,12 @@
 """
-CommandCentral - Governance & Truth State Service
+PIPELZR - Codebase & Execution Service
 
-The central authority for:
-- State machines and entity lifecycle
-- Permissions and authorization
-- Audit logging
-- Decision primitives
-- Cross-service coordination
+The execution engine for:
+- Task execution (local, Dagger, E2B)
+- Pipeline orchestration (batch, parallel)
+- Agent session management
+- Skill execution
+- Codebase indexing
 """
 
 from contextlib import asynccontextmanager
@@ -18,7 +18,7 @@ from .config import get_settings
 from .database import init_db, close_db
 
 # Import routers
-from .routers import auth, state_machine, decisions, events, projects, health
+from .routers import health, tasks, agents, pipelines, skills
 
 # Import middleware
 from .middleware import (
@@ -54,7 +54,7 @@ structlog.configure(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
-    logger = structlog.get_logger("commandcentral.startup")
+    logger = structlog.get_logger("pipelzr.startup")
     
     # Startup
     await logger.ainfo(
@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Governance & Truth State Service for CommandCentral Platform",
+    description="Codebase & Execution Service for CommandCentral Platform",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -105,11 +105,10 @@ app.add_middleware(
 
 # Register routers
 app.include_router(health.router, tags=["Health"])
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
-app.include_router(state_machine.router, prefix="/api/v1/state-machine", tags=["State Machine"])
-app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["Decisions"])
-app.include_router(events.router, prefix="/api/v1/events", tags=["Events"])
-app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
+app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["Tasks"])
+app.include_router(agents.router, prefix="/api/v1/agents", tags=["Agents"])
+app.include_router(pipelines.router, prefix="/api/v1/pipelines", tags=["Pipelines"])
+app.include_router(skills.router, prefix="/api/v1/skills", tags=["Skills"])
 
 
 @app.get("/")
@@ -119,16 +118,15 @@ async def root():
         "service": settings.app_name,
         "version": settings.app_version,
         "status": "operational",
-        "description": "Governance & Truth State Service",
+        "description": "Codebase & Execution Service",
         "endpoints": {
             "health": "/health",
             "metrics": "/metrics",
             "docs": "/docs",
-            "auth": "/api/v1/auth",
-            "state_machine": "/api/v1/state-machine",
-            "decisions": "/api/v1/decisions",
-            "events": "/api/v1/events",
-            "projects": "/api/v1/projects",
+            "tasks": "/api/v1/tasks",
+            "agents": "/api/v1/agents",
+            "pipelines": "/api/v1/pipelines",
+            "skills": "/api/v1/skills",
         },
     }
 

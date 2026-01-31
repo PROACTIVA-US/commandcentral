@@ -1,0 +1,178 @@
+---
+name: model-availability-check
+version: 1.0.0
+domain: commandcentral
+category: arena
+description: Validate AI model availability with actual query/response before Arena sessions
+
+triggers:
+  - pattern: "arena|multi-model|deliberation|ai review"
+  - explicit: "test models|check availability|preflight"
+
+context_required:
+  api_reference:
+    - /api/v1/llm/complete
+    - /api/v1/llm/providers
+    - /api/v1/llm/models
+
+preconditions:
+  - check: backend_running
+    endpoint: /api/v1/health
+  - check: at_least_one_provider_configured
+    endpoint: /api/v1/llm/providers
+
+# Test configuration
+test_config:
+  prompt: "Respond with exactly one word: Ready"
+  max_tokens: 10
+  timeout_seconds: 15  # Per Arena recommendation: shorter than 30s
+  retries: 2
+  retry_delay_ms: 1000
+  parallel: true  # Run all checks in parallel
+
+# Result caching (per Arena recommendation)
+cache:
+  enabled: true
+  ttl_minutes: 5
+  key: "provider:model"
+  invalidation:
+    - on: provider_error
+    - on: manual_refresh
+
+instructions:
+  - step: 1
+    action: "Get list of intended models for the Arena session"
+    note: "From session config or user specification"
+
+  - step: 2
+    action: "Check cache for recent availability results"
+    cache_ttl: 5 minutes
+    on_cache_hit: "Return cached results, skip live test"
+
+  - step: 3
+    action: "For each model, send test completion (in parallel)"
+    request:
+      endpoint: POST /api/v1/llm/complete
+      body:
+        model: "{model_id}"
+        prompt: "Respond with exactly one word: Ready"
+        max_tokens: 10
+      timeout: 15s
+      retries: 2
+
+  - step: 4
+    action: "Collect and aggregate results"
+    metrics:
+      - model_id
+      - provider
+      - status: ready|failed|timeout
+      - latency_ms
+      - error_message (if failed)
+
+  - step: 5
+    action: "Determine session viability"
+    rules:
+      all_ready: "Proceed with session"
+      some_failed: "Offer alternatives or proceed with available"
+      all_failed: "Abort - troubleshoot required"
+      minimum_required: 2  # Arena needs at least 2 models for meaningful deliberation
+
+  - step: 6
+    action: "Log results to audit trail"
+    audit_fields:
+      - session_id
+      - models_tested
+      - results_per_model
+      - final_decision
+      - timestamp
+
+outputs:
+  - type: availability_report
+    format: |
+      ═══════════════════════════════════════════════════
+      AI ARENA PREFLIGHT CHECK
+      ═══════════════════════════════════════════════════
+
+      {foreach model}
+      {status_icon} {name} ({model_id})
+         Provider: {provider}
+         Latency: {latency_ms}ms
+         {if failed}Error: {error_message}{/if}
+
+      {/foreach}
+      ═══════════════════════════════════════════════════
+      RESULT: {ready_count}/{total_count} models ready
+
+      {if all_ready}
+      ✓ All models operational - Arena ready to launch!
+      {else if some_ready}
+      ⚠ {failed_count} model(s) unavailable
+      Alternatives: {suggested_alternatives}
+      Proceed with available? [y/n]
+      {else}
+      ✗ No models available - check API keys and configuration
+      {/if}
+
+fallback_strategy:
+  description: "When a model fails, suggest alternatives from same provider or tier"
+  priority:
+    - same_provider_stable_tier
+    - different_provider_same_capability
+    - any_available_model
+
+  provider_alternatives:
+    openai:
+      flagship: gpt-5.2
+      stable: gpt-5
+      fallback: gpt-4.1
+    anthropic:
+      flagship: claude-opus-4-5-20251101
+      stable: claude-sonnet-4-5-20250929
+      fallback: claude-haiku-4-5-20251001
+    grok:
+      flagship: grok-3
+      stable: grok-2
+    moonshot:
+      flagship: kimi-2.5
+      stable: moonshot-v1-128k
+
+validation:
+  - check: "minimum_models_available"
+    count: 2
+    description: "Arena requires at least 2 working models for deliberation"
+
+examples:
+  - input: "Test GPT-5.2, Claude Opus, Grok-3, Kimi-2.5"
+    output: |
+      ═══════════════════════════════════════════════════
+      AI ARENA PREFLIGHT CHECK
+      ═══════════════════════════════════════════════════
+
+      ✓ Claude Opus 4.5 (claude-opus-4-5-20251101)
+         Provider: anthropic
+         Latency: 2048ms
+
+      ✓ GPT-5.2 (gpt-5.2)
+         Provider: openai
+         Latency: 1606ms
+
+      ✓ Grok 3 (grok-3)
+         Provider: grok
+         Latency: 1084ms
+
+      ✗ Kimi 2.5 (kimi-2.5)
+         Provider: moonshot
+         Error: 401 Unauthorized
+
+      ═══════════════════════════════════════════════════
+      RESULT: 3/4 models ready
+
+      ⚠ 1 model unavailable
+      Alternatives: gemini-3-pro-preview, glm-4.7
+      Proceed with available? [y/n]
+
+tags:
+  - arena
+  - preflight
+  - validation
+  - models

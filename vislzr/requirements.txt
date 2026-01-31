@@ -1,0 +1,34 @@
+# VISLZR - Backend Dependencies
+# Visualization & Exploration Service
+
+# Core Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic[email]>=2.5.0
+pydantic-settings>=2.1.0
+
+# Database
+sqlalchemy>=2.0.25
+aiosqlite>=0.19.0
+alembic>=1.13.1
+
+# Authentication
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+
+# HTTP Client (for inter-service communication)
+httpx>=0.26.0
+aiohttp>=3.9.1
+
+# Utilities
+python-dotenv>=1.0.0
+structlog>=24.1.0
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+black>=24.1.0
+ruff>=0.1.0
+greenlet>=3.0.0

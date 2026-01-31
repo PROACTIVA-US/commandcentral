@@ -59,7 +59,7 @@ class Project(Base):
 
     # Configuration
     settings = Column(JSON, default=dict)
-    metadata = Column(JSON, default=dict)
+    extra_data = Column(JSON, default=dict)  # Renamed from 'metadata' (reserved by SQLAlchemy)
 
     # Repository link (for PIPELZR)
     repo_path = Column(String, nullable=True)

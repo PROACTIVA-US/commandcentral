@@ -1,0 +1,210 @@
+name: governance-frontend
+version: 1.0.0
+domain: commandcentral
+category: frontend
+description: |
+  Creates governance UI components for CommandCentral including
+  decision management with state machine transitions, audit log
+  viewer, and state visualization. Supports the full decision
+  lifecycle: draft -> active -> decided -> archived.
+
+triggers:
+  - pattern: "decisions|decision page|decision list"
+    weight: 100
+  - pattern: "governance|governance tab"
+    weight: 95
+  - pattern: "audit log|audit trail|audit viewer"
+    weight: 90
+  - pattern: "state machine|state transition"
+    weight: 85
+  - pattern: "decision card|decision form"
+    weight: 80
+
+context_required:
+  api_reference:
+    - /api/v1/decisions
+    - /api/v1/decisions/{id}
+    - /api/v1/decisions/{id}/activate
+    - /api/v1/decisions/{id}/decide
+    - /api/v1/decisions/{id}/archive
+    - /api/v1/decisions/{id}/transitions
+    - /api/v1/decisions/{id}/audit
+  domain_models:
+    - Decision
+    - AuditEntry
+  patterns:
+    - tanstack-query
+    - react-hook-form
+    - shadcn-ui
+  dependencies:
+    - "@tanstack/react-query"
+    - react-hook-form
+    - zod
+
+outputs:
+  - type: page
+    path: src/features/commandcentral/pages/DecisionsPage.tsx
+    description: List of decisions with filtering and creation
+  - type: page
+    path: src/features/commandcentral/pages/AuditPage.tsx
+    description: Filterable audit log table
+  - type: component
+    path: src/features/commandcentral/components/DecisionCard.tsx
+    description: Card showing decision with state and actions
+  - type: component
+    path: src/features/commandcentral/components/DecisionForm.tsx
+    description: Form for creating/editing decisions
+  - type: component
+    path: src/features/commandcentral/components/DecisionDetail.tsx
+    description: Full decision view with options and history
+  - type: component
+    path: src/features/commandcentral/components/TransitionButton.tsx
+    description: Button that triggers state transition
+  - type: component
+    path: src/features/commandcentral/components/StateBadge.tsx
+    description: Colored badge showing current state
+  - type: component
+    path: src/features/commandcentral/components/AuditLogViewer.tsx
+    description: Table with filtering for audit entries
+  - type: component
+    path: src/features/commandcentral/components/DecideModal.tsx
+    description: Modal for making decision (select option + rationale)
+
+preconditions:
+  - check: auth_implemented
+    message: "Authentication must be implemented"
+  - check: project_context
+    message: "Project selector must exist to scope decisions"
+
+instructions:
+  - step: 1
+    action: Create StateBadge component
+    details: |
+      Create src/features/commandcentral/components/StateBadge.tsx:
+      - Props: state (string), size (sm/md)
+      - Color mapping:
+        - draft: gray
+        - active: blue
+        - decided: green
+        - archived: slate
+        - proposed: yellow
+        - completed: green
+        - killed: red
+        - paused: orange
+      - Use shadcn Badge component
+
+  - step: 2
+    action: Create TransitionButton component
+    details: |
+      Create src/features/commandcentral/components/TransitionButton.tsx:
+      - Props: entityId, entityType, transition, onSuccess
+      - Show confirmation dialog for destructive transitions (kill, archive)
+      - Loading state during API call
+      - Toast on success/error
+      - Some transitions need modal (decide needs option selection)
+
+  - step: 3
+    action: Create DecisionCard component
+    details: |
+      Create src/features/commandcentral/components/DecisionCard.tsx:
+      - Props: decision object
+      - Show title, question preview, state badge
+      - Show created_at, updated_at
+      - Show tags as small badges
+      - Click to open DecisionDetail
+      - Quick action buttons for allowed transitions
+
+  - step: 4
+    action: Create DecisionForm component
+    details: |
+      Create src/features/commandcentral/components/DecisionForm.tsx:
+      - Use react-hook-form with zod
+      - Fields: title, question, context, options (dynamic array), tags
+      - Options editor: add/remove options with id, label, description
+      - Validate at least 2 options for activation
+      - Submit creates or updates decision
+
+  - step: 5
+    action: Create DecideModal component
+    details: |
+      Create src/features/commandcentral/components/DecideModal.tsx:
+      - Props: decision, onClose, onSuccess
+      - Show all options as radio buttons
+      - Require rationale textarea
+      - Submit calls /decide endpoint
+      - Show loading and success states
+
+  - step: 6
+    action: Create DecisionDetail component
+    details: |
+      Create src/features/commandcentral/components/DecisionDetail.tsx:
+      - Full view of decision
+      - Show all options with pros/cons if available
+      - Highlight selected option if decided
+      - Show rationale if decided
+      - Timeline of state changes (from audit)
+      - Transition buttons based on allowed_transitions
+
+  - step: 7
+    action: Create AuditLogViewer component
+    details: |
+      Create src/features/commandcentral/components/AuditLogViewer.tsx:
+      - Table with columns: timestamp, event_type, event_name, actor, success
+      - Filters: event_type, date range, entity_type
+      - Pagination with limit/offset
+      - Expand row to see full details
+      - Export to CSV button
+
+  - step: 8
+    action: Create DecisionsPage
+    details: |
+      Create src/features/commandcentral/pages/DecisionsPage.tsx:
+      - Header with "Decisions" title and "New Decision" button
+      - Filters: state dropdown, tags, search
+      - Grid or list of DecisionCards
+      - Empty state for no decisions
+      - Modal for creating new decision
+
+  - step: 9
+    action: Create AuditPage
+    details: |
+      Create src/features/commandcentral/pages/AuditPage.tsx:
+      - Header with "Audit Log" title
+      - Project filter (uses projectStore)
+      - AuditLogViewer component
+      - Date range picker
+      - Export functionality
+
+validation:
+  - check: typescript_compiles
+    config:
+      strict: true
+  - check: state_transitions_work
+    config:
+      transitions:
+        - draft -> active
+        - active -> decided
+        - active -> archived
+        - decided -> archived
+  - check: forms_validate
+    config:
+      required_fields: [title, question]
+      min_options: 2
+
+examples:
+  - input: "Create decision management UI"
+    notes: |
+      - Support full lifecycle
+      - Show allowed transitions only
+      - Validate requirements before transition
+
+  - input: "Add audit log viewer"
+    notes: |
+      - Filterable by event type
+      - Exportable to CSV
+      - Paginated for performance
+
+related_skills:
+  - auth-frontend
+  - dashboard-frontend
+  - projects-frontend

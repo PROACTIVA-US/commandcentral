@@ -1,0 +1,134 @@
+# CommandCentral Platform - Docker Compose
+# 4 services: CommandCentral, PIPELZR, VISLZR, IDEALZR
+
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CommandCentral - Governance & Truth State (Port 8000)
+  # ═══════════════════════════════════════════════════════════════════════════
+  commandcentral:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: commandcentral
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=CommandCentral
+      - PORT=8000
+      - DEBUG=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/commandcentral.db
+      - PIPELZR_URL=http://pipelzr:8000
+      - VISLZR_URL=http://vislzr:8000
+      - IDEALZR_URL=http://idealzr:8000
+    volumes:
+      - commandcentral_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ccplatform
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PIPELZR - Codebase & Execution (Port 8001)
+  # ═══════════════════════════════════════════════════════════════════════════
+  pipelzr:
+    build:
+      context: ./pipelzr
+      dockerfile: Dockerfile
+    container_name: pipelzr
+    ports:
+      - "8001:8000"
+    environment:
+      - APP_NAME=PIPELZR
+      - PORT=8000
+      - DEBUG=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/pipelzr.db
+      - COMMANDCENTRAL_URL=http://commandcentral:8000
+    volumes:
+      - pipelzr_data:/app/data
+    depends_on:
+      commandcentral:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ccplatform
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # VISLZR - Visualization & Exploration (Port 8002)
+  # ═══════════════════════════════════════════════════════════════════════════
+  vislzr:
+    build:
+      context: ./vislzr
+      dockerfile: Dockerfile
+    container_name: vislzr
+    ports:
+      - "8002:8000"
+    environment:
+      - APP_NAME=VISLZR
+      - PORT=8000
+      - DEBUG=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/vislzr.db
+      - COMMANDCENTRAL_URL=http://commandcentral:8000
+    volumes:
+      - vislzr_data:/app/data
+    depends_on:
+      commandcentral:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ccplatform
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # IDEALZR - Ideas & Strategic Intelligence (Port 8003)
+  # ═══════════════════════════════════════════════════════════════════════════
+  idealzr:
+    build:
+      context: ./idealzr
+      dockerfile: Dockerfile
+    container_name: idealzr
+    ports:
+      - "8003:8000"
+    environment:
+      - APP_NAME=IDEALZR
+      - PORT=8000
+      - DEBUG=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/idealzr.db
+      - COMMANDCENTRAL_URL=http://commandcentral:8000
+    volumes:
+      - idealzr_data:/app/data
+    depends_on:
+      commandcentral:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ccplatform
+
+networks:
+  ccplatform:
+    driver: bridge
+
+volumes:
+  commandcentral_data:
+  pipelzr_data:
+  vislzr_data:
+  idealzr_data:

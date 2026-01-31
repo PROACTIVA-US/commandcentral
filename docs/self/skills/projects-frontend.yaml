@@ -1,0 +1,211 @@
+name: projects-frontend
+version: 1.0.0
+domain: commandcentral
+category: frontend
+description: |
+  Creates project management UI components for CommandCentral including
+  project list, creation, settings, team management, and state transitions.
+  Projects are the primary isolation boundary across all services.
+
+triggers:
+  - pattern: "project list|project page|projects"
+    weight: 100
+  - pattern: "create project|new project"
+    weight: 95
+  - pattern: "project settings|project config"
+    weight: 90
+  - pattern: "team management|team members|add member"
+    weight: 85
+  - pattern: "project state|activate project|pause project"
+    weight: 80
+
+context_required:
+  api_reference:
+    - /api/v1/projects
+    - /api/v1/projects/{id}
+    - /api/v1/projects/{id}/activate
+    - /api/v1/projects/{id}/pause
+    - /api/v1/projects/{id}/resume
+    - /api/v1/projects/{id}/complete
+    - /api/v1/projects/{id}/kill
+    - /api/v1/projects/{id}/team
+    - /api/v1/projects/{id}/transitions
+    - /api/v1/projects/{id}/audit
+  domain_models:
+    - Project
+    - User
+  patterns:
+    - tanstack-query
+    - react-hook-form
+    - shadcn-ui
+    - zustand
+  dependencies:
+    - "@tanstack/react-query"
+    - react-hook-form
+    - zod
+
+outputs:
+  - type: page
+    path: src/features/commandcentral/pages/ProjectsPage.tsx
+    description: List of projects with filtering
+  - type: page
+    path: src/features/commandcentral/pages/ProjectDetailPage.tsx
+    description: Single project view with tabs
+  - type: page
+    path: src/features/commandcentral/pages/ProjectSettingsPage.tsx
+    description: Project settings and configuration
+  - type: component
+    path: src/features/commandcentral/components/ProjectCard.tsx
+    description: Card showing project with state and quick actions
+  - type: component
+    path: src/features/commandcentral/components/ProjectForm.tsx
+    description: Form for creating/editing projects
+  - type: component
+    path: src/features/commandcentral/components/ProjectHeader.tsx
+    description: Project header with name, state, and actions
+  - type: component
+    path: src/features/commandcentral/components/TeamManager.tsx
+    description: Add/remove team members
+  - type: component
+    path: src/features/commandcentral/components/RepoLinkForm.tsx
+    description: Form to link repository path/URL
+
+preconditions:
+  - check: auth_implemented
+    message: "Authentication must be implemented"
+  - check: project_store_exists
+    message: "projectStore must exist"
+
+instructions:
+  - step: 1
+    action: Create ProjectCard component
+    details: |
+      Create src/features/commandcentral/components/ProjectCard.tsx:
+      - Props: project object
+      - Show name, slug, description preview
+      - StateBadge showing current state
+      - Owner avatar
+      - Team member count
+      - Created/updated timestamps
+      - Click navigates to project detail
+      - Quick actions: state transitions
+
+  - step: 2
+    action: Create ProjectForm component
+    details: |
+      Create src/features/commandcentral/components/ProjectForm.tsx:
+      - Use react-hook-form with zod
+      - Fields:
+        - name (required)
+        - slug (auto-generated from name, editable)
+        - description (optional, textarea)
+        - repo_path (optional)
+        - repo_url (optional)
+      - Validate slug is URL-safe
+      - Submit creates or updates project
+
+  - step: 3
+    action: Create ProjectHeader component
+    details: |
+      Create src/features/commandcentral/components/ProjectHeader.tsx:
+      - Props: project object
+      - Large project name
+      - StateBadge
+      - Breadcrumb navigation
+      - Action buttons based on allowed_transitions:
+        - proposed: Activate, Kill
+        - active: Pause, Complete, Kill
+        - paused: Resume, Kill
+      - Settings gear icon link
+
+  - step: 4
+    action: Create TeamManager component
+    details: |
+      Create src/features/commandcentral/components/TeamManager.tsx:
+      - Props: projectId, teamIds, ownerId
+      - List current team members with avatars
+      - Owner badge on owner
+      - Remove button for non-owners
+      - Add member: search users, add button
+      - Confirmation dialog for removal
+
+  - step: 5
+    action: Create RepoLinkForm component
+    details: |
+      Create src/features/commandcentral/components/RepoLinkForm.tsx:
+      - Props: projectId, currentRepoPath, currentRepoUrl
+      - Fields for repo_path (local) and repo_url (remote)
+      - Validate path exists (if possible)
+      - Validate URL is valid git URL
+      - Used by PIPELZR for pipeline execution
+
+  - step: 6
+    action: Create ProjectsPage
+    details: |
+      Create src/features/commandcentral/pages/ProjectsPage.tsx:
+      - Header: "Projects" title, "New Project" button
+      - Filters: state dropdown, search by name
+      - View toggle: grid/list
+      - Grid of ProjectCards
+      - Empty state for no projects
+      - Modal for creating new project
+
+  - step: 7
+    action: Create ProjectDetailPage
+    details: |
+      Create src/features/commandcentral/pages/ProjectDetailPage.tsx:
+      - ProjectHeader at top
+      - Tabs:
+        - Overview: description, stats, recent activity
+        - Decisions: decisions scoped to project
+        - Team: TeamManager
+        - Settings: link to settings page
+      - Fetch project by ID from URL params
+      - 404 handling
+
+  - step: 8
+    action: Create ProjectSettingsPage
+    details: |
+      Create src/features/commandcentral/pages/ProjectSettingsPage.tsx:
+      - ProjectHeader (compact)
+      - Sections:
+        - General: name, slug, description
+        - Repository: RepoLinkForm
+        - Danger Zone: Kill project button (with confirmation)
+      - Save button at bottom
+
+validation:
+  - check: typescript_compiles
+    config:
+      strict: true
+  - check: crud_operations_work
+    config:
+      operations: [create, read, update, delete]
+  - check: state_transitions_work
+    config:
+      transitions:
+        - proposed -> active
+        - proposed -> killed
+        - active -> paused
+        - active -> completed
+        - active -> killed
+        - paused -> active
+        - paused -> killed
+
+examples:
+  - input: "Create project list page"
+    notes: |
+      - Show projects user has access to
+      - Filter by state
+      - Grid layout with responsive columns
+
+  - input: "Add team member management"
+    notes: |
+      - Search users by email
+      - Cannot remove owner
+      - Confirmation for removal
+
+related_skills:
+  - auth-frontend
+  - dashboard-frontend
+  - governance-frontend
