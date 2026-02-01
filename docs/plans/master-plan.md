@@ -1,10 +1,15 @@
-# CommandCentral Master Plan
-
-> **Date:** 2026-02-01
-> **Status:** Active
-> **Version:** 1.0
-
 ---
+title: CommandCentral Master Plan
+type: plan
+status: active
+created: 2026-02-01
+updated: 2026-02-01 12:45
+owner: daniel
+tags: [commandcentral, architecture, roadmap]
+progress: 15
+---
+
+# CommandCentral Master Plan
 
 ## Executive Summary
 
