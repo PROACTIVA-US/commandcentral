@@ -1,7 +1,7 @@
 #!/bin/bash
-# Skill Check Hook for CommandCenter V3
-# Updated: 2026-01-12
-# Enforces documentation protocol and repository hygiene
+# Skill Check Hook for CommandCentral
+# Updated: 2026-02-01
+# Enforces documentation protocol, repository hygiene, and naming conventions
 
 case "$CLAUDE_TOOL_NAME" in
   Write|Edit|MultiEdit|CreateFile|str_replace_editor)
@@ -9,27 +9,71 @@ case "$CLAUDE_TOOL_NAME" in
     FILE_CONTENT=$(echo "$CLAUDE_TOOL_INPUT" | jq -r '.content // empty' 2>/dev/null)
 
     if [ -n "$FILE_PATH" ]; then
-      # Block new plan files (except MASTER_PLAN.md)
-      if echo "$FILE_PATH" | grep -qE "docs/plans/.+\.md$" && ! echo "$FILE_PATH" | grep -q "MASTER_PLAN.md"; then
-        echo ""
-        echo "❌ BLOCKED: Only ONE plan allowed - update docs/plans/MASTER_PLAN.md instead"
-        echo "   Read: skills/documentation-protocol/SKILL.md"
-        echo ""
-        exit 1
-      fi
-
-      # Block files in project root (except allowed list)
       BASENAME=$(basename "$FILE_PATH")
-      if echo "$FILE_PATH" | grep -qE "^[^/]+\.md$" && ! echo "$BASENAME" | grep -qE "^(README|AGENTS|CLAUDE|NEXT_STEPS|CONTRIBUTING|LICENSE|SECURITY)\.md$"; then
-        echo ""
-        echo "❌ BLOCKED: No .md files in project root"
-        echo "   Allowed: README.md, AGENTS.md, CLAUDE.md, NEXT_STEPS.md, CONTRIBUTING.md"
-        echo "   Put docs in docs/, skills in skills/"
-        echo "   Read: skills/repository-hygiene/SKILL.md"
-        echo ""
-        exit 1
+
+      # ============================================
+      # NAMING CONVENTION: Lowercase kebab-case
+      # ============================================
+      # Check for uppercase in docs/ files (except allowed root files)
+      if echo "$FILE_PATH" | grep -qE "^docs/.*\.md$"; then
+        # Allow specific uppercase files: README, SKILL, INDEX, MANIFEST
+        if ! echo "$BASENAME" | grep -qE "^(README|SKILL|INDEX|MANIFEST)\.md$"; then
+          # Block if filename contains uppercase
+          if echo "$BASENAME" | grep -q '[A-Z]'; then
+            echo ""
+            echo "❌ BLOCKED: Docs must use lowercase kebab-case naming"
+            echo "   File: $FILE_PATH"
+            echo "   Found: $BASENAME"
+            echo "   Should be: $(echo "$BASENAME" | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')"
+            echo "   Read: skills/documentation-protocol/SKILL.md"
+            echo ""
+            exit 1
+          fi
+          # Block if filename contains underscores
+          if echo "$BASENAME" | grep -q '_'; then
+            echo ""
+            echo "❌ BLOCKED: Use hyphens, not underscores in filenames"
+            echo "   File: $FILE_PATH"
+            echo "   Found: $BASENAME"
+            echo "   Should be: $(echo "$BASENAME" | sed 's/_/-/g')"
+            echo "   Read: skills/documentation-protocol/SKILL.md"
+            echo ""
+            exit 1
+          fi
+        fi
       fi
 
+      # ============================================
+      # PLAN FILES: Only one master-plan.md allowed
+      # ============================================
+      if echo "$FILE_PATH" | grep -qE "docs/plans/.+\.md$"; then
+        if ! echo "$BASENAME" | grep -qE "^master-plan\.md$"; then
+          echo ""
+          echo "❌ BLOCKED: Only ONE plan allowed - update docs/plans/master-plan.md instead"
+          echo "   Read: skills/documentation-protocol/SKILL.md"
+          echo ""
+          exit 1
+        fi
+      fi
+
+      # ============================================
+      # ROOT DIRECTORY: No stray .md files
+      # ============================================
+      if echo "$FILE_PATH" | grep -qE "^[^/]+\.md$"; then
+        if ! echo "$BASENAME" | grep -qE "^(README|AGENTS|CLAUDE|GEMINI|NEXT_STEPS|CONTRIBUTING|LICENSE|SECURITY)\.md$"; then
+          echo ""
+          echo "❌ BLOCKED: No .md files in project root"
+          echo "   Allowed: README.md, AGENTS.md, CLAUDE.md, GEMINI.md, CONTRIBUTING.md"
+          echo "   Put docs in docs/, skills in skills/"
+          echo "   Read: skills/repository-hygiene/SKILL.md"
+          echo ""
+          exit 1
+        fi
+      fi
+
+      # ============================================
+      # ROOT DIRECTORY: No test/utility scripts
+      # ============================================
       # Block test scripts in root
       if echo "$FILE_PATH" | grep -qE "^test[_-].*\.(py|sh|js|ts)$"; then
         echo ""
