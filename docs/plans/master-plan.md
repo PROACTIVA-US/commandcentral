@@ -3,7 +3,7 @@ title: CommandCentral Master Plan
 type: plan
 status: active
 created: 2026-02-01
-updated: 2026-02-01 12:45
+updated: 2026-02-01 13:15
 owner: daniel
 tags: [commandcentral, architecture, roadmap]
 progress: 15
@@ -171,6 +171,8 @@ SCAN (Cron) → EVALUATE (Score) → PLAN → TEST (Sandbox) → NOTIFY → APPR
 | AI Arena | In CommandCentral | Fits governance/decision-making role |
 | Skills | Local ownership | Each service owns skills, indexed centrally |
 | Execution | CC4 short-term | Migrate to PIPELZR long-term |
+| Knowledge Format | Markdown + YAML/JSON | Human-readable + machine-parseable |
+| Shared Components | shadcn base, independent impl | Consistent look, design autonomy, no coupling |
 
 ---
 
