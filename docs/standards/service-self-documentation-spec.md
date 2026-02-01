@@ -7,12 +7,12 @@ status: active
 
 # Service Self-Documentation Standard
 
-Every microservice in the CC4 ecosystem MUST include a `/docs/self/` directory that describes the service for autonomous agents and other services.
+Every microservice in the CC4 ecosystem MUST include a `/docs/service-spec/` directory that describes the service for autonomous agents and other services.
 
 ## Required Structure
 
 ```
-/docs/self/
+/docs/service-spec/
 ├── api-reference.md       # All endpoints with request/response schemas
 ├── domain-model.md        # Core entities and relationships
 ├── patterns.md            # Coding conventions and patterns
@@ -137,7 +137,7 @@ Index of all skills available in this service:
 When PIPELZR receives a task:
 
 1. Extract target service from task context
-2. Fetch `/docs/self/manifest.json` from target service (or local path)
+2. Fetch `/docs/service-spec/manifest.json` from target service (or local path)
 3. Match task to skills using trigger patterns
 4. Load matching skill definitions
 5. Fetch domain-model.md and api-reference.md as context

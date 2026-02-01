@@ -28,7 +28,7 @@ This misses the opportunity for skills to be:
 ### Current: Skills as Config
 
 ```yaml
-# /docs/self/skills/auth-flow.yaml
+# /docs/service-spec/skills/auth-flow.yaml
 id: auth-flow
 name: "Authentication Flow"
 triggers:
@@ -51,7 +51,7 @@ instructions: |
 ### Target: Skills as Knowledge
 
 ```yaml
-# /docs/self/skills/auth-flow.yaml
+# /docs/service-spec/skills/auth-flow.yaml
 id: auth-flow
 name: "Authentication Flow"
 triggers:
@@ -368,7 +368,7 @@ class RepoAgent:
 ### Phase 1: Add Knowledge to Existing Skills
 
 ```bash
-# For each skill in /docs/self/skills/
+# For each skill in /docs/service-spec/skills/
 for skill in *.yaml:
     # Add knowledge section
     add_knowledge_template(skill)

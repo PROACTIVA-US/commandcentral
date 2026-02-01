@@ -79,8 +79,8 @@ class PipelineConfig(BaseModel):
   "target_repo": "file:///Users/danielconnolly/Projects/CommandCentral",
   "target_branch": "main",
   "worktree_root": "/tmp/commandcentral-worktrees",
-  "skills_source": "file:///Users/danielconnolly/Projects/CommandCentral/docs/self/skills",
-  "knowledge_source": "file:///Users/danielconnolly/Projects/CommandCentral/docs/self",
+  "skills_source": "file:///Users/danielconnolly/Projects/CommandCentral/docs/service-spec/skills",
+  "knowledge_source": "file:///Users/danielconnolly/Projects/CommandCentral/docs/service-spec",
   "execution_context": {
     "service": "commandcentral",
     "port": 8000,
@@ -175,8 +175,8 @@ New required config (explicit):
 # CommandCentral frontend build (CORRECT)
 target_repo = "/Users/danielconnolly/Projects/CommandCentral"
 worktree_root = "/tmp/commandcentral-worktrees"
-skills_source = "/Users/danielconnolly/Projects/CommandCentral/docs/self/skills"
-knowledge_source = "/Users/danielconnolly/Projects/CommandCentral/docs/self"
+skills_source = "/Users/danielconnolly/Projects/CommandCentral/docs/service-spec/skills"
+knowledge_source = "/Users/danielconnolly/Projects/CommandCentral/docs/service-spec"
 ```
 
 ## PIPELZR API
@@ -216,6 +216,6 @@ Response:
 |-------|-------|------------|
 | `E001` | target_repo not specified | Add explicit target_repo |
 | `E002` | target_repo not found | Check path/URL |
-| `E003` | skills_source not found | Create /docs/self/skills |
-| `E004` | knowledge_source not found | Create /docs/self |
+| `E003` | skills_source not found | Create /docs/service-spec/skills |
+| `E004` | knowledge_source not found | Create /docs/service-spec |
 | `E005` | worktree_root not writable | Check permissions |

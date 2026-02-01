@@ -23,7 +23,7 @@ These decisions address the architectural gap exposed when splitting CC4 into 4 
 - Central registry enables cross-service skill discovery
 
 **Implementation:**
-- Each service maintains `/docs/self/skills/` directory
+- Each service maintains `/docs/service-spec/skills/` directory
 - Each service provides `manifest.json` listing skills
 - PIPELZR queries services for skill definitions
 - PIPELZR caches skill index for performance
@@ -39,9 +39,9 @@ These decisions address the architectural gap exposed when splitting CC4 into 4 
 - JSON manifest enables programmatic access
 
 **Implementation:**
-- `/docs/self/*.md` - Human-readable documentation
-- `/docs/self/skills/*.yaml` - Machine-readable skill definitions
-- `/docs/self/skills/manifest.json` - Skill index
+- `/docs/service-spec/*.md` - Human-readable documentation
+- `/docs/service-spec/skills/*.yaml` - Machine-readable skill definitions
+- `/docs/service-spec/skills/manifest.json` - Skill index
 
 ### 3. Execution Location
 
@@ -83,11 +83,11 @@ These decisions address the architectural gap exposed when splitting CC4 into 4 
 
 | File | Purpose |
 |------|---------|
-| `service-self-documentation-spec.md` | Defines `/docs/self/` structure |
+| `service-self-documentation-spec.md` | Defines `/docs/service-spec/` structure |
 | `skill-definition-spec.md` | Defines skill YAML schema |
 | `pipeline-configuration-spec.md` | Defines pipeline config schema |
 
-### Self-Documentation (`/docs/self/`)
+### Self-Documentation (`/docs/service-spec/`)
 
 | File | Purpose |
 |------|---------|
@@ -96,7 +96,7 @@ These decisions address the architectural gap exposed when splitting CC4 into 4 
 | `patterns.md` | Coding patterns and conventions |
 | `dependencies.md` | Runtime and dev dependencies |
 
-### Skills (`/docs/self/skills/`)
+### Skills (`/docs/service-spec/skills/`)
 
 | File | Purpose |
 |------|---------|

@@ -11,7 +11,7 @@ Skills are machine-readable instructions that tell autonomous agents HOW to acco
 
 ## File Format
 
-Skills are defined in YAML files with the `.yaml` extension, stored in `/docs/self/skills/`.
+Skills are defined in YAML files with the `.yaml` extension, stored in `/docs/service-spec/skills/`.
 
 ## Schema
 

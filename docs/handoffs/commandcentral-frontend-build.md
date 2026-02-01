@@ -119,8 +119,8 @@ CC4 already has a working UX/UI validation pipeline. Use it directly:
      "spec_path": "/Users/danielconnolly/Projects/CommandCentral/docs/specs/frontend-spec.md",
      "target_repo": "file:///Users/danielconnolly/Projects/CommandCentral",
      "worktree_root": "/tmp/commandcentral-worktrees",
-     "skills_source": "local:///Users/danielconnolly/Projects/CommandCentral/docs/self/skills",
-     "knowledge_source": "local:///Users/danielconnolly/Projects/CommandCentral/docs/self"
+     "skills_source": "local:///Users/danielconnolly/Projects/CommandCentral/docs/service-spec/skills",
+     "knowledge_source": "local:///Users/danielconnolly/Projects/CommandCentral/docs/service-spec"
    }
    ```
 
@@ -153,7 +153,7 @@ Build manually but use skill resolution for guidance:
 Before building the frontend, create self-documentation in CommandCentral:
 
 ### 1. API Reference
-**File:** `CommandCentral/docs/self/api-reference.md`
+**File:** `CommandCentral/docs/service-spec/api-reference.md`
 
 Document all endpoints:
 - `/api/v1/auth/*` - Login, register, logout, me
@@ -163,7 +163,7 @@ Document all endpoints:
 - `/api/v1/events/*` - Stream, history
 
 ### 2. Domain Model
-**File:** `CommandCentral/docs/self/domain-model.md`
+**File:** `CommandCentral/docs/service-spec/domain-model.md`
 
 ```yaml
 entities:
@@ -175,7 +175,7 @@ entities:
 ```
 
 ### 3. Frontend Skills
-**Directory:** `CommandCentral/docs/self/skills/`
+**Directory:** `CommandCentral/docs/service-spec/skills/`
 
 Create skills for:
 - `auth-pages.md` - Login, register, logout UI
@@ -184,7 +184,7 @@ Create skills for:
 - `project-management.md` - Project CRUD UI
 
 ### 4. Patterns
-**File:** `CommandCentral/docs/self/patterns.md`
+**File:** `CommandCentral/docs/service-spec/patterns.md`
 
 Document:
 - Component structure (shadcn, Zustand stores)
@@ -241,7 +241,7 @@ uvicorn app.main:app --reload --port 8001
 cd ~/Projects/CommandCentral
 
 # 3. Create self-documentation structure
-mkdir -p docs/self/skills
+mkdir -p docs/service-spec/skills
 
 # 4. Query KB for existing patterns
 curl -X POST http://localhost:8001/api/v1/knowledge/search \
