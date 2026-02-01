@@ -1,15 +1,15 @@
-# Handoff: Transition to CC4 for Next Phase
+# Handoff: CommandCentral + CC4 Backend Integration
 
-> **Date:** 2026-01-31
+> **Date:** 2026-01-31 (Updated 2026-02-01)
 > **From:** CommandCentral architecture session
-> **To:** CC4 implementation session
+> **To:** Continued CommandCentral session with CC4 backend
 > **Priority:** High
 
 ---
 
 ## Executive Summary
 
-After extensive architecture exploration in CommandCentral, we're ready to transition to CC4 for implementation. The Vine is built, Arena is fixed, and we have clear architectural principles. Time to execute.
+After extensive architecture exploration in CommandCentral, we're ready to execute. **Continue working from CommandCentral** while using CC4's running backend for knowledge capture and AI Arena. The Vine is built, Arena is fixed, and we have clear architectural principles. Time to execute.
 
 ---
 
@@ -59,23 +59,24 @@ Reviewed `docs/unbuilt-features-inventory.md`:
 
 ---
 
-## Why Transition to CC4
+## Why Use CC4 Backend (While Working in CommandCentral)
 
-| Factor | CommandCentral | CC4 |
-|--------|----------------|-----|
-| Backend | Scaffold only | Running, 140+ endpoints |
-| Knowledge Capture | None | Hooks exist, calls `/api/v1/knowledge/sync-cli-sessions` |
+| Factor | CommandCentral | CC4 Backend |
+|--------|----------------|-------------|
+| Backend | Scaffold only | Running at localhost:8001, 140+ endpoints |
+| Knowledge Capture | None locally | Hooks exist, calls `/api/v1/knowledge/sync-cli-sessions` |
 | AI Arena | Docs only | Working (fixed) |
-| KnowledgeBeast | Design only | Running, indexed |
-| Skills/Hooks | None | 9 active, hooks configured |
+| KnowledgeBeast | Design only | Running, indexed with skills |
+| Skills/Hooks | 63 files ported | Originally from here |
 
-**Verdict:** CC4 has the infrastructure to actually execute. CommandCentral is architecture docs.
+**Verdict:** Stay in CommandCentral for development. Use CC4's running backend for knowledge capture and AI features.
 
 ---
 
-## Immediate Actions in CC4
+## Immediate Actions (From CommandCentral)
 
-### 1. Start Backend
+### 1. Verify CC4 Backend Running
+CC4 backend should already be running at localhost:8001. If not:
 ```bash
 cd /Projects/CC4
 source backend/.venv/bin/activate
@@ -129,13 +130,14 @@ From `ai-arena-gaps-and-fixes.md`:
 
 ---
 
-## Files to Read First in CC4
+## Key CC4 Files (for reference)
 
-1. `.claude/hooks/SessionEnd/capture_learnings.sh` - Knowledge capture hook
-2. `.claude/settings.json` - Hook configuration
-3. `backend/app/services/arena_service.py` - Arena with fixes
-4. `backend/app/routers/arena.py` - Arena API endpoints
-5. `docs/central-core/` - Phase docs for what's built
+When you need to check CC4's backend implementation:
+1. `/Projects/CC4/.claude/hooks/SessionEnd/capture_learnings.sh` - Knowledge capture hook
+2. `/Projects/CC4/.claude/settings.json` - Hook configuration
+3. `/Projects/CC4/backend/app/services/arena_service.py` - Arena with fixes
+4. `/Projects/CC4/backend/app/routers/arena.py` - Arena API endpoints
+5. `/Projects/CC4/docs/central-core/` - Phase docs for what's built
 
 ---
 
@@ -147,23 +149,26 @@ From `ai-arena-gaps-and-fixes.md`:
 
 ## Session Continuation Prompt
 
-When starting in CC4, use this context:
+When continuing in CommandCentral with CC4 backend:
 
 ```
-I'm continuing from a CommandCentral architecture session. Key context:
+Continue CommandCentral session - using CC4 backend infrastructure
 
+Working from: /Projects/CommandCentral
+Using: CC4 backend at localhost:8001 (should be running)
+
+Key context:
 1. The Vine is built at /Projects/Wildvine/the-vine/ - ready to test
 2. Arena fixes were applied - pre-flight checks, knowledge capture
 3. Architecture docs are in /Projects/CommandCentral/docs/architecture/
-4. Handoff doc: /Projects/CommandCentral/docs/handoffs/cc4-transition-2026-01-31.md
+4. Skills ported to CommandCentral/skills/ (63 files, indexed in KB)
 
-Immediate goals:
-1. Start the backend and verify it's working
-2. Test if knowledge capture hooks are functioning
-3. Test The Vine CLI with a real ideation session
-4. Consider running an Arena session to plan next steps
+Remaining tasks:
+1. Verify knowledge capture hooks work (session end triggers memory claims)
+2. Test The Vine CLI (vine preflight, vine ideate)
+3. Run Arena session: "Planning the next phase of CommandCentral development"
 
-The architectural principles to maintain:
+Architectural principles:
 - Intent enforcement (FAIL_LOUD, no silent workarounds)
 - Universal pipeline model
 - Skills as knowledge
@@ -213,11 +218,11 @@ python scripts/index_skills_knowledgebeast.py
 We've moved from exploration to execution readiness:
 - Architecture is clear (6 key docs)
 - Tools are built (The Vine, Arena fixed)
-- Infrastructure exists (CC4 backend)
+- Infrastructure exists (CC4 backend at localhost:8001)
 - Principles are defined (intent enforcement, pipelines, knowledge capture)
 - **Skills ported** (63 files from CC4 for repo hygiene)
 
-**Next step:** Use CC4's pipeline while working in CommandCentral. Skills enforce repo hygiene.
+**Working model:** Stay in CommandCentral. Use CC4's backend for knowledge capture and AI features.
 
 ---
 
