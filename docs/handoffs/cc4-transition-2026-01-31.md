@@ -54,7 +54,8 @@ Reviewed `docs/unbuilt-features-inventory.md`:
 | **CC4 Arena** | `/Projects/CC4/` | Fixed | Pre-flight checks added |
 | **CC4 Backend** | `/Projects/CC4/` | Ready | Has knowledge capture hooks |
 | **KnowledgeBeast** | CC4 | Running | Indexed with architecture docs |
-| **CommandCentral** | `/Projects/CommandCentral/` | Scaffold + docs | No running backend |
+| **CommandCentral** | `/Projects/CommandCentral/` | Scaffold + docs + skills | Skills ported from CC4 |
+| **Skills** | `CommandCentral/skills/` | **Ported 2026-02-01** | 63 skill files (12 active, 46 archived) |
 
 ---
 
@@ -97,7 +98,7 @@ vine ideate "An AI-assisted project planning tool"
 ### 4. Run Arena Session
 Use Arena to help plan next steps:
 - Topic: "Planning the next phase of CommandCentral development"
-- Include: Claude, GPT, Grok (Kimi if working)
+- Include: Claude, GPT, Grok and Gemini
 - Capture insights to KB
 
 ---
@@ -141,9 +142,6 @@ From `ai-arena-gaps-and-fixes.md`:
 ## Open Questions to Address
 
 1. **Is knowledge capture actually working?** Test by running a session and checking memory_claims table
-2. **Does Arena pre-flight work with Kimi?** Test Moonshot API
-3. **Should The Vine use multiple providers?** Current design uses personas, not providers
-4. **What's the priority order for unbuilt features?** Use Arena to debate this
 
 ---
 
@@ -174,6 +172,42 @@ The architectural principles to maintain:
 
 ---
 
+## Skills Ported (2026-02-01)
+
+Skills have been ported from CC4 to CommandCentral for use with CC4's pipeline infrastructure:
+
+### What Was Ported
+- **63 skill files** copied to `CommandCentral/skills/`
+- **12 active skills** (6 P0 critical, 5 P1 required, 1 P2 advisory)
+- **46 archived skills** in `skills/archive/`
+- **MANIFEST.yaml** v5.1 with keyword/pattern matching
+- **Skill indexing script** at `scripts/index_skills_knowledgebeast.py`
+
+### Key Skills for Repo Hygiene
+| Skill | Purpose |
+|-------|---------|
+| `repository-hygiene` | No test scripts in root, proper file locations |
+| `documentation-protocol` | Update existing docs, single source of truth |
+| `skill-governance` | Skill lifecycle, archival decisions |
+| `damage-control` | Safety hooks for destructive commands |
+
+### Skills-as-Knowledge Architecture
+Skills are indexed in KnowledgeBeast for:
+- **Semantic discovery** (not just trigger matching)
+- **Conflict detection** (knows which skills clash)
+- **Composition suggestions** (which skills work together)
+- **Dependency checking** (pre-execution validation)
+
+See: `docs/architecture/active/skills-as-knowledge.md`
+
+### Next: Index Skills to KB
+```bash
+# When backend is running:
+python scripts/index_skills_knowledgebeast.py
+```
+
+---
+
 ## Summary
 
 We've moved from exploration to execution readiness:
@@ -181,8 +215,9 @@ We've moved from exploration to execution readiness:
 - Tools are built (The Vine, Arena fixed)
 - Infrastructure exists (CC4 backend)
 - Principles are defined (intent enforcement, pipelines, knowledge capture)
+- **Skills ported** (63 files from CC4 for repo hygiene)
 
-**Next step:** Switch to CC4, start backend, test the tools, use them to plan next phase.
+**Next step:** Use CC4's pipeline while working in CommandCentral. Skills enforce repo hygiene.
 
 ---
 

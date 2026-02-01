@@ -72,9 +72,32 @@ service/
 └── Dockerfile
 ```
 
+## Skills
+
+Skills are indexed as knowledge (see `docs/architecture/active/skills-as-knowledge.md`).
+
+**Always check skills before starting work:**
+- `skills/MANIFEST.yaml` - Skill registry with priorities and keywords
+- `skills/INDEX.md` - Quick reference for active skills
+- `skills/lessons/SKILL.md` - **CHECK FIRST** - Anti-patterns and incidents
+
+| Priority | Skills | When to Check |
+|----------|--------|---------------|
+| P0 | skill-governance, damage-control, context-management, operations, ux-governance, ui-design-validation | Every session |
+| P1 | patterns, repository-hygiene, documentation-protocol, autonomy | When relevant |
+| P2 | lessons | When debugging |
+
+## Architectural Principles
+
+1. **Intent Is Sacred** - FAIL_LOUD default, no silent workarounds
+2. **Everything Is a Pipeline** - Universal Pipeline → Stage → Executor model
+3. **Skills as Knowledge** - Semantic discovery, conflict detection, composition
+4. **Knowledge Capture** - Never lose insights (KnowledgeBeast integration)
+
 ## Notes
 
 - Commit frequently with meaningful messages
 - Each service runs independently on its own port
 - Services communicate via HTTP APIs
 - Ask before making architectural changes across services
+- Check skills/repository-hygiene before creating files

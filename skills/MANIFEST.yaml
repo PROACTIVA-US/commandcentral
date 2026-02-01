@@ -1,0 +1,277 @@
+# Skill Manifest - CommandCentral
+# Updated: 2026-02-01 (Ported from CC4)
+
+version: "5.1"
+updated: 2026-02-01
+
+# CommandCentral: 4-service microservices platform
+# Skills ported from CC4 with full archive (63 skill files)
+# Skills indexed as knowledge (see docs/architecture/active/skills-as-knowledge.md)
+
+# Skill Tiers for Memory Integration
+# HOT: Essence loaded every session (~50 words per skill)
+# WARM: Full skill loaded when keywords match
+# COLD: Detailed examples in visual memory (future)
+
+skills:
+  # P0 - Critical (Always Check)
+  - name: skill-governance
+    path: skills/skill-governance/SKILL.md
+    priority: P0
+    keywords:
+      - skill
+      - archive
+      - consolidate
+      - manifest
+      - governance
+      - institutional
+    file_patterns:
+      - "skills/**"
+      - "skills/MANIFEST.yaml"
+    description: "Meta-skill ensuring skills are checked; prevents knowledge loss from archival"
+
+  - name: damage-control
+    path: skills/damage-control/SKILL.md
+    priority: P0
+    keywords:
+      - autonomous
+      - destructive
+      - safety
+      - hooks
+      - permissions
+      - rm
+      - force
+      - delete
+      - drop
+    file_patterns:
+      - ".claude/hooks/**"
+      - "settings.json"
+    description: "Safety hooks blocking destructive commands (rm -rf, force push, DROP TABLE)"
+
+  - name: context-management
+    path: skills/context-management/SKILL.md
+    priority: P0
+    keywords:
+      - context
+      - tokens
+      - memory
+      - compact
+      - capacity
+      - limit
+    file_patterns: []
+    description: "11 strategies to stay under 50% context capacity; prevents /compact"
+
+  - name: operations
+    path: skills/operations/SKILL.md
+    priority: P0
+    keywords:
+      - pipeline
+      - startup
+      - docker
+      - dagger
+      - execution
+      - agent
+      - autonomous
+      - credentials
+      - oauth
+      - worktree
+    file_patterns:
+      - "backend/app/services/**"
+      - "backend/app/routers/autonomous.py"
+      - "scripts/*.sh"
+    description: "How to run CommandCentral - startup, execution modes, pipeline, worktree pool"
+
+  - name: ux-governance
+    path: skills/ux-governance/SKILL.md
+    priority: P0
+    enforcement: blocking
+    keywords:
+      - page
+      - dashboard
+      - component
+      - modal
+      - tab
+      - navigation
+      - sidebar
+      - user experience
+      - UX
+      - layout
+      - role
+      - permission
+      - visibility
+      - access
+      - workflow
+      - multi-step
+      - wizard
+    file_patterns:
+      - "frontend/src/pages/**"
+      - "frontend/src/components/**"
+      - "**/Layout.tsx"
+      - "**/Sidebar.tsx"
+      - "**/Navigation.tsx"
+    description: "Information architecture, role visibility, cognitive load, task flow continuity"
+
+  - name: ui-design-validation
+    path: skills/ui-design-validation/SKILL.md
+    priority: P0
+    enforcement: blocking
+    keywords:
+      - style
+      - design
+      - color
+      - theme
+      - appearance
+      - button
+      - card
+      - form
+      - input
+      - icon
+      - chart
+      - graph
+      - table
+      - list
+      - animation
+      - transition
+      - hover
+      - focus
+      - responsive
+      - mobile
+    file_patterns:
+      - "frontend/src/components/**"
+      - "**/*.css"
+      - "**/tailwind.config.*"
+    description: "Visual hierarchy, semantic colors, spacing consistency, touch targets, focus states"
+
+  # P1 - Required (Check When Relevant)
+  - name: patterns
+    path: skills/patterns/SKILL.md
+    priority: P1
+    keywords:
+      - component
+      - react
+      - frontend
+      - agent
+      - architecture
+      - prompt
+      - tool
+      - documentation
+    file_patterns:
+      - "frontend/src/components/**"
+      - "backend/app/agents/**"
+    description: "Code patterns - frontend components, agent architecture"
+
+  - name: repository-hygiene
+    path: skills/repository-hygiene/SKILL.md
+    priority: P1
+    keywords:
+      - root
+      - directory
+      - file
+      - location
+      - cleanup
+      - organize
+      - commit
+    file_patterns:
+      - "*.sh"
+      - "*.py"
+      - "*.md"
+    description: "File organization rules - no test scripts in root, proper locations"
+
+  - name: documentation-protocol
+    path: skills/documentation-protocol/SKILL.md
+    priority: P1
+    keywords:
+      - docs
+      - documentation
+      - readme
+      - plan
+      - spec
+      - create
+      - new
+      - file
+    file_patterns:
+      - "docs/**"
+      - "*.md"
+    description: "Update existing docs, never create new; single source of truth"
+
+  - name: autonomy
+    path: skills/autonomy/SKILL.md
+    priority: P1
+    keywords:
+      - ralph
+      - loop
+      - autonomous
+      - long-running
+      - persistent
+      - iteration
+      - completion
+    file_patterns:
+      - ".claude/ralph-loop.local.md"
+    description: "Ralph loop patterns for long-running autonomous workflows"
+
+  # P2 - Advisory (Check When Debugging)
+  - name: lessons
+    path: skills/lessons/SKILL.md
+    priority: P2
+    keywords:
+      - error
+      - bug
+      - problem
+      - issue
+      - fix
+      - debug
+      - mistake
+      - wrong
+    file_patterns: []
+    description: "Anti-patterns and incidents - read to avoid repeated mistakes"
+
+# Archive location for old skills
+archive: skills/archive/
+
+# Critical rule from 2026-01-12 incident
+archival_governance:
+  rule: "Never archive without extracting key principles to active skill"
+  never_archive_categories:
+    - meta/governance
+    - safety
+    - operational
+    - quality
+    - ux
+    - ui
+  human_approval_required_for: "consolidations affecting >5 skills"
+
+# How skills improve
+improvement:
+  on_failure: "flag_for_skill_review"
+  on_success: "track_skill_usage"
+  lessons_growth: "append_on_incident"
+
+# Pipeline Integration Notes (2026-01-13)
+pipeline_integration:
+  source: "/Users/danielconnolly/Projects/PipelineHardening"
+  status: "validated"
+  key_components:
+    - worktree_pool.py
+    - parallel_orchestrator.py
+    - execution_worker.py
+    - task_executor.py
+  validation_results:
+    efficiency: "92-97%"
+    git_integrity: "all tests passed"
+    error_isolation: "validated"
+
+# UX/UI Governance Notes (2026-01-25)
+ux_ui_governance:
+  trigger: "PropertyManager disaster - Claude built disjointed UI without UX principles"
+  root_cause: "No semantic understanding of user experience in skill governance"
+  solution:
+    - ux-governance skill (P0 blocking)
+    - ui-design-validation skill (P0 blocking)
+  key_rules:
+    - Information architecture coherence
+    - Role-based feature visibility matrix
+    - Visual data consistency (green=good, red=bad)
+    - Personalization context display
+    - Feature importance hierarchy
+    - Cognitive load limit (5±2 tabs)
+    - Task flow continuity
