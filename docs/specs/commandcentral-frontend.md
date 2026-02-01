@@ -123,7 +123,7 @@ Build a React + TypeScript frontend for CommandCentral that provides unified nav
     - `/idealzr/*` (goals, hypotheses, evidence, forecasts, ventures, ideas)
     - `/pipelzr/*` (tasks, pipelines, agents, skills)
     - `/vislzr/*` (canvas, explore)
-    - `/commandcentral/*` (governance, decisions, audit)
+    - `/commandcentral/*` (governance, decisions, audit, arena)
     - `/settings`, `/profile`
   - Create `src/components/auth/ProtectedRoute.tsx` for auth guard
   - Update `src/App.tsx` to use RouterProvider
@@ -362,12 +362,45 @@ Build a React + TypeScript frontend for CommandCentral that provides unified nav
   - **Complexity:** medium
   - **Files:** frontend/src/features/commandcentral/pages/DecisionsPage.tsx, frontend/src/features/commandcentral/pages/AuditPage.tsx, frontend/src/features/commandcentral/components/DecisionCard.tsx, frontend/src/features/commandcentral/components/AuditLogViewer.tsx
 
+- [ ] **Task 18: AI Arena - Multi-model deliberation**
+  - Create `src/features/arena/pages/ArenaPage.tsx`
+    - List of arena sessions
+    - Create session button with topic input
+    - Session cards showing status, participants, message count
+  - Create `src/features/arena/pages/ArenaSessionPage.tsx`
+    - Multi-agent chat view
+    - Messages grouped by agent with provider badges
+    - Input for user messages
+    - Preflight status indicator
+  - Create `src/features/arena/components/SessionCard.tsx`
+  - Create `src/features/arena/components/AgentMessage.tsx`
+    - Agent avatar/icon by provider
+    - Message content with markdown
+    - Timestamp and metadata
+  - Create `src/features/arena/components/PreflightStatus.tsx`
+    - Shows which models are ready/failed
+    - Latency indicators
+  - Create `src/features/arena/components/AgentSelector.tsx`
+    - Select models for new session
+    - Shows available flagship models
+  - Create `src/api/clients/arenaClient.ts`
+    - createSession, getSession, getSessions
+    - chat, preflight, getMessages
+  - Add Arena to Governance sub-navigation
+  - **Acceptance criteria:**
+    - Sessions list with create/view actions
+    - Real-time chat with multiple AI agents
+    - Preflight shows model availability
+    - Messages display with agent attribution
+  - **Complexity:** complex
+  - **Files:** frontend/src/features/arena/pages/ArenaPage.tsx, frontend/src/features/arena/pages/ArenaSessionPage.tsx, frontend/src/features/arena/components/SessionCard.tsx, frontend/src/features/arena/components/AgentMessage.tsx, frontend/src/features/arena/components/PreflightStatus.tsx, frontend/src/api/clients/arenaClient.ts
+
 ---
 
 ### Batch 6: Global Features
 **Depends on:** Batch 5
 
-- [ ] **Task 18: Global search (Cmd+K) with cross-service results**
+- [ ] **Task 19: Global search (Cmd+K) with cross-service results**
   - Install cmdk: `npm install cmdk`
   - Create `src/stores/searchStore.ts`
     - query, results, isSearching, filters, recentSearches
@@ -389,7 +422,7 @@ Build a React + TypeScript frontend for CommandCentral that provides unified nav
   - **Complexity:** complex
   - **Files:** frontend/src/stores/searchStore.ts, frontend/src/components/search/GlobalSearchBar.tsx, frontend/src/components/search/SearchResults.tsx, frontend/src/components/search/SearchResultCard.tsx, frontend/src/api/search.ts
 
-- [ ] **Task 19: Notification system with WebSocket**
+- [ ] **Task 20: Notification system with WebSocket**
   - Create `src/stores/notificationStore.ts`
     - notifications, unreadCount, isConnected
     - Actions: addNotification, markAsRead, markAllAsRead
@@ -414,7 +447,7 @@ Build a React + TypeScript frontend for CommandCentral that provides unified nav
   - **Complexity:** complex
   - **Files:** frontend/src/stores/notificationStore.ts, frontend/src/hooks/useWebSocket.ts, frontend/src/components/activity/NotificationBell.tsx, frontend/src/components/activity/NotificationDropdown.tsx, frontend/src/components/activity/ActivityFeed.tsx
 
-- [ ] **Task 20: Settings and Profile pages**
+- [ ] **Task 21: Settings and Profile pages**
   - Create `src/pages/SettingsPage.tsx`
     - Theme selector (light/dark/system)
     - Notification preferences
@@ -438,7 +471,7 @@ Build a React + TypeScript frontend for CommandCentral that provides unified nav
 ### Batch 7: Polish
 **Depends on:** Batch 6
 
-- [ ] **Task 21: Loading states, error boundaries, dark mode**
+- [ ] **Task 22: Loading states, error boundaries, dark mode**
   - Create `src/components/common/Skeleton.tsx` loading skeletons
   - Create `src/components/common/ErrorBoundary.tsx`
     - Catches React errors
