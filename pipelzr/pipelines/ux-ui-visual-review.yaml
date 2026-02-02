@@ -340,7 +340,7 @@ stages:
       project_path: "{{ input.project_path }}"
       fixes: "{{ stages.generate_fixes.output.fixes }}"
       branch_name: "ux-ui-review/{{ now() | date('YYYY-MM-DD-HHmm') }}"
-      base_branch: "{{ input.target_branch }}"
+      base_branch: "{{ input.target_branch | default('main') }}"
 
     output_mapping:
       worktree_path: "$.worktree_path"
@@ -407,7 +407,7 @@ stages:
     input_template:
       project_path: "{{ input.project_path }}"
       branch_name: "{{ stages.apply_fixes.output.branch_name }}"
-      base_branch: "{{ input.target_branch }}"
+      base_branch: "{{ input.target_branch | default('main') }}"
       title: "fix(ux): Visual review fixes - {{ now() | date('YYYY-MM-DD') }}"
       body: |
         ## UX/UI Visual Review Fixes

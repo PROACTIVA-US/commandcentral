@@ -111,6 +111,10 @@ class GitService:
         project_path = Path(project_path)
         worktree_path = WORKTREE_BASE / branch_name.replace("/", "_")
 
+        # Ensure base_branch has a value
+        if not base_branch or base_branch.strip() == "":
+            base_branch = "main"
+
         # Clean up existing worktree
         if worktree_path.exists():
             self._run_git(
@@ -351,8 +355,12 @@ async def action_git_apply_fixes(
     """Apply fixes in git worktree."""
     project_path = input_data.get("project_path", "")
     fixes = input_data.get("fixes", [])
-    branch_name = input_data.get("branch_name", f"fix/pipeline-{datetime.now().strftime('%Y%m%d-%H%M')}")
-    base_branch = input_data.get("base_branch", "main")
+    branch_name = input_data.get("branch_name") or f"fix/pipeline-{datetime.now().strftime('%Y%m%d-%H%M')}"
+    base_branch = input_data.get("base_branch") or "main"
+
+    # Ensure base_branch is never empty
+    if not base_branch or base_branch.strip() == "":
+        base_branch = "main"
 
     # Create worktree
     worktree = git_service.create_worktree(
