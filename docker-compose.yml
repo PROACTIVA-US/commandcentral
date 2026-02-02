@@ -5,7 +5,7 @@ version: '3.8'
 
 services:
   # ═══════════════════════════════════════════════════════════════════════════
-  # CommandCentral - Governance & Truth State (Port 8000)
+  # CommandCentral - Governance & Truth State (Port 9004)
   # ═══════════════════════════════════════════════════════════════════════════
   commandcentral:
     build:
@@ -13,7 +13,7 @@ services:
       dockerfile: Dockerfile
     container_name: commandcentral
     ports:
-      - "8000:8000"
+      - "9004:8000"
     environment:
       - APP_NAME=CommandCentral
       - PORT=8000
@@ -34,7 +34,7 @@ services:
       - ccplatform
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # PIPELZR - Codebase & Execution (Port 8001)
+  # PIPELZR - Codebase & Execution (Port 9005)
   # ═══════════════════════════════════════════════════════════════════════════
   pipelzr:
     build:
@@ -42,7 +42,7 @@ services:
       dockerfile: Dockerfile
     container_name: pipelzr
     ports:
-      - "8001:8000"
+      - "9005:8000"
     environment:
       - APP_NAME=PIPELZR
       - PORT=8000
@@ -64,7 +64,7 @@ services:
       - ccplatform
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # VISLZR - Visualization & Exploration (Port 8002)
+  # VISLZR - Visualization & Exploration (Port 9006)
   # ═══════════════════════════════════════════════════════════════════════════
   vislzr:
     build:
@@ -72,7 +72,7 @@ services:
       dockerfile: Dockerfile
     container_name: vislzr
     ports:
-      - "8002:8000"
+      - "9006:8000"
     environment:
       - APP_NAME=VISLZR
       - PORT=8000
@@ -94,7 +94,7 @@ services:
       - ccplatform
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # IDEALZR - Ideas & Strategic Intelligence (Port 8003)
+  # IDEALZR - Ideas & Strategic Intelligence (Port 9007)
   # ═══════════════════════════════════════════════════════════════════════════
   idealzr:
     build:
@@ -102,7 +102,7 @@ services:
       dockerfile: Dockerfile
     container_name: idealzr
     ports:
-      - "8003:8000"
+      - "9007:8000"
     environment:
       - APP_NAME=IDEALZR
       - PORT=8000

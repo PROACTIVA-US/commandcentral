@@ -1,0 +1,332 @@
+# Document Intelligence Pipeline
+# Orchestrates the 5 Document Intelligence personas for comprehensive document analysis
+#
+# Pipeline Flow:
+#   1. Classify document type and status
+#   2. Extract concepts (parallel with requirements)
+#   3. Mine requirements (parallel with concepts)
+#   4. Map relationships (needs concepts)
+#   5. Detect staleness (can run early)
+#   6. Ingest results into Graph-Service
+
+name: document-intelligence
+display_name: Document Intelligence Pipeline
+description: |
+  Analyzes documents to extract concepts, requirements, and relationships,
+  then ingests the results into the Graph-Service knowledge graph.
+
+  Designed for processing documentation, specifications, design documents,
+  and other structured content to build a comprehensive knowledge base.
+
+version: "1.0.0"
+category: document-processing
+
+# Pipeline-level configuration
+config:
+  # How to handle stage failures
+  on_failure: continue  # continue | stop | retry
+  max_retries: 2
+  retry_delay_seconds: 5
+
+  # Output aggregation
+  output_format: json
+  aggregate_results: true
+
+  # Graph-Service integration
+  ingest_to_graph: true
+  graph_project_id: "${PROJECT_ID}"
+
+# Input schema - what the pipeline expects
+input:
+  type: object
+  required:
+    - document_path
+  properties:
+    document_path:
+      type: string
+      description: Path to the document to analyze
+    document_content:
+      type: string
+      description: Optional pre-loaded document content
+    project_id:
+      type: integer
+      description: Project ID for multi-tenant isolation
+    codebase_context:
+      type: object
+      description: Optional context about the current codebase state
+      properties:
+        file_list:
+          type: array
+          items:
+            type: string
+        tech_stack:
+          type: array
+          items:
+            type: string
+        recent_changes:
+          type: string
+
+# Output schema - what the pipeline produces
+output:
+  type: object
+  properties:
+    document:
+      type: object
+      description: Document classification result
+    concepts:
+      type: array
+      description: Extracted concepts
+    requirements:
+      type: array
+      description: Mined requirements
+    relationships:
+      type: array
+      description: Mapped relationships
+    staleness:
+      type: object
+      description: Staleness analysis
+    ingestion_result:
+      type: object
+      description: Graph-Service ingestion result
+
+# Pipeline stages
+stages:
+  # Stage 1: Classify the document
+  - id: classify
+    name: Document Classification
+    persona: doc-classifier
+    description: Determine document type, status, and recommended action
+
+    input_template: |
+      Analyze this document and provide classification:
+
+      Document Path: {{ input.document_path }}
+
+      {% if input.document_content %}
+      Document Content:
+      {{ input.document_content }}
+      {% else %}
+      Please read the document at the path above.
+      {% endif %}
+
+    output_mapping:
+      classification: "$.classification"
+      recommendation: "$.recommendation"
+      relationships: "$.relationships"
+      meta: "$.meta"
+
+    timeout_seconds: 120
+    required: true
+
+  # Stage 2: Extract concepts (can run in parallel with requirements)
+  - id: extract_concepts
+    name: Concept Extraction
+    persona: doc-concept-extractor
+    description: Identify named concepts, products, features, and ideas
+
+    parallel_with:
+      - mine_requirements
+      - detect_staleness
+
+    input_template: |
+      Extract all concepts from this document:
+
+      Document Path: {{ input.document_path }}
+      Document Type: {{ stages.classify.output.classification.type }}
+
+      {% if input.document_content %}
+      Document Content:
+      {{ input.document_content }}
+      {% else %}
+      Please read the document at the path above.
+      {% endif %}
+
+    output_mapping:
+      concepts: "$.concepts"
+      meta: "$.meta"
+
+    timeout_seconds: 180
+    required: true
+
+  # Stage 3: Mine requirements (parallel with concepts)
+  - id: mine_requirements
+    name: Requirement Mining
+    persona: doc-requirement-miner
+    description: Extract requirements, constraints, and dependencies
+
+    parallel_with:
+      - extract_concepts
+      - detect_staleness
+
+    input_template: |
+      Mine all requirements from this document:
+
+      Document Path: {{ input.document_path }}
+      Document Type: {{ stages.classify.output.classification.type }}
+
+      {% if input.document_content %}
+      Document Content:
+      {{ input.document_content }}
+      {% else %}
+      Please read the document at the path above.
+      {% endif %}
+
+    output_mapping:
+      requirements: "$.requirements"
+      meta: "$.meta"
+
+    timeout_seconds: 180
+    required: true
+
+  # Stage 4: Detect staleness (can run early, parallel with extraction)
+  - id: detect_staleness
+    name: Staleness Detection
+    persona: doc-staleness-detector
+    description: Analyze document for outdated information
+
+    parallel_with:
+      - extract_concepts
+      - mine_requirements
+
+    input_template: |
+      Analyze this document for staleness:
+
+      Document Path: {{ input.document_path }}
+
+      {% if input.document_content %}
+      Document Content:
+      {{ input.document_content }}
+      {% else %}
+      Please read the document at the path above.
+      {% endif %}
+
+      {% if input.codebase_context %}
+      Current Codebase Context:
+      - Files: {{ input.codebase_context.file_list | join(', ') }}
+      - Tech Stack: {{ input.codebase_context.tech_stack | join(', ') }}
+      {% if input.codebase_context.recent_changes %}
+      - Recent Changes: {{ input.codebase_context.recent_changes }}
+      {% endif %}
+      {% endif %}
+
+    output_mapping:
+      staleness_score: "$.staleness_score"
+      indicators: "$.indicators"
+      recommendation: "$.recommendation"
+      meta: "$.meta"
+
+    timeout_seconds: 180
+    required: false  # Pipeline can succeed without staleness detection
+
+  # Stage 5: Map relationships (needs concepts first)
+  - id: map_relationships
+    name: Relationship Mapping
+    persona: doc-relationship-mapper
+    description: Identify connections between concepts and systems
+
+    depends_on:
+      - extract_concepts
+
+    input_template: |
+      Map relationships in this document:
+
+      Document Path: {{ input.document_path }}
+
+      Previously Extracted Concepts:
+      {% for concept in stages.extract_concepts.output.concepts %}
+      - {{ concept.name }} ({{ concept.type }}): {{ concept.definition }}
+      {% endfor %}
+
+      {% if input.document_content %}
+      Document Content:
+      {{ input.document_content }}
+      {% else %}
+      Please read the document at the path above.
+      {% endif %}
+
+    output_mapping:
+      relationships: "$.relationships"
+      document_references: "$.document_references"
+      external_references: "$.external_references"
+      meta: "$.meta"
+
+    timeout_seconds: 180
+    required: true
+
+  # Stage 6: Aggregate and ingest into Graph-Service
+  - id: ingest
+    name: Graph Ingestion
+    type: action  # Not a persona stage, but an action
+    description: Ingest extracted data into Graph-Service
+
+    depends_on:
+      - classify
+      - extract_concepts
+      - mine_requirements
+      - map_relationships
+      - detect_staleness
+
+    action: graph_service.ingest_document_intelligence
+
+    input_template:
+      project_id: "{{ input.project_id }}"
+      document:
+        path: "{{ input.document_path }}"
+        doc_type: "{{ stages.classify.output.classification.type }}"
+        subtype: "{{ stages.classify.output.classification.subtype }}"
+        status: "{{ stages.classify.output.classification.status }}"
+        audience: "{{ stages.classify.output.classification.audience }}"
+        value_assessment: "{{ stages.classify.output.classification.value_assessment }}"
+        staleness_score: "{{ stages.detect_staleness.output.staleness_score | default(0) }}"
+        recommended_action: "{{ stages.classify.output.recommendation.action }}"
+        target_location: "{{ stages.classify.output.recommendation.target_location }}"
+        word_count: "{{ stages.classify.output.meta.word_count | default(0) }}"
+      concepts: "{{ stages.extract_concepts.output.concepts }}"
+      requirements: "{{ stages.mine_requirements.output.requirements }}"
+      relationships: "{{ stages.map_relationships.output.relationships }}"
+
+    timeout_seconds: 60
+    required: true
+
+# Execution hints
+execution:
+  # Parallel execution groups (stages in same group run concurrently)
+  parallel_groups:
+    - group: extraction
+      stages:
+        - extract_concepts
+        - mine_requirements
+        - detect_staleness
+
+  # Stage ordering (respects depends_on but allows parallel within groups)
+  order:
+    - classify                    # Must run first
+    - [extract_concepts, mine_requirements, detect_staleness]  # Parallel
+    - map_relationships           # Needs concepts
+    - ingest                      # Final aggregation
+
+# Hooks for extensibility
+hooks:
+  on_start:
+    - log: "Starting Document Intelligence pipeline for {{ input.document_path }}"
+
+  on_stage_complete:
+    - log: "Stage {{ stage.id }} completed in {{ stage.duration_seconds }}s"
+
+  on_complete:
+    - log: "Pipeline completed. Processed: {{ output.concepts | length }} concepts, {{ output.requirements | length }} requirements"
+    - emit_event:
+        subject: "pipeline.document_intelligence.completed"
+        payload:
+          document_path: "{{ input.document_path }}"
+          concepts_count: "{{ output.concepts | length }}"
+          requirements_count: "{{ output.requirements | length }}"
+
+  on_failure:
+    - log: "Pipeline failed at stage {{ failed_stage.id }}: {{ failed_stage.error }}"
+    - emit_event:
+        subject: "pipeline.document_intelligence.failed"
+        payload:
+          document_path: "{{ input.document_path }}"
+          failed_stage: "{{ failed_stage.id }}"
+          error: "{{ failed_stage.error }}"

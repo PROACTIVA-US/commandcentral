@@ -1,15 +1,26 @@
 """
 Pipeline orchestration endpoints.
+
+Includes:
+- Standard pipeline CRUD and execution
+- YAML pipeline loading, validation, and triggering
+- Credential validation
 """
 
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
+import json
 
 from ..database import get_session
 from ..models.pipeline import PipelineState
 from ..services.pipeline_service import PipelineService
+from ..services.pipeline_loader import pipeline_loader
+from ..services.pipeline_validator import pipeline_validator
+from ..services.pipeline_executor import pipeline_executor, StageStatus
 
 router = APIRouter()
 
@@ -345,14 +356,14 @@ async def retry_pipeline(
     """Retry a failed pipeline."""
     service = PipelineService(session)
     pipeline = await service.get_pipeline(pipeline_id)
-    
+
     if not pipeline:
         raise HTTPException(status_code=404, detail="Pipeline not found")
-    
+
     pipeline = await service.retry_pipeline(pipeline)
     if not pipeline:
         raise HTTPException(status_code=400, detail="Cannot retry pipeline")
-    
+
     return PipelineResponse(
         id=pipeline.id,
         name=pipeline.name,
@@ -370,4 +381,297 @@ async def retry_pipeline(
         duration_ms=pipeline.duration_ms,
         error=pipeline.error,
         created_at=pipeline.created_at.isoformat(),
+    )
+
+
+# =============================================================================
+# YAML Pipeline Endpoints
+# =============================================================================
+
+
+class YamlPipelineInfo(BaseModel):
+    """Info about an available YAML pipeline."""
+    filename: str
+    name: str
+    display_name: str
+    description: str
+    version: str
+    category: str
+    stage_count: int
+
+
+class ValidationRequest(BaseModel):
+    """Request to validate a pipeline YAML."""
+    yaml_content: str
+    validate_credentials: bool = True
+
+
+class ValidationResponse(BaseModel):
+    """Response from pipeline validation."""
+    valid: bool
+    errors: List[Dict[str, Any]]
+    warnings: List[Dict[str, Any]]
+    credential_status: Dict[str, Any]
+    estimated_duration_seconds: int
+
+
+class TriggerRequest(BaseModel):
+    """Request to trigger a YAML pipeline."""
+    input_params: Dict[str, Any] = {}
+    auto_approval: bool = False
+    validate_credentials: bool = True
+
+
+class TriggerResponse(BaseModel):
+    """Response from pipeline trigger."""
+    success: bool
+    pipeline_name: str
+    execution_id: str
+    stage_results: Dict[str, Any]
+    outputs: Dict[str, Any]
+    error: Optional[str]
+    duration_ms: int
+
+
+class CredentialValidationResponse(BaseModel):
+    """Response from credential validation."""
+    all_valid: bool
+    credentials: Dict[str, Any]
+
+
+@router.get("/yaml/available", response_model=List[YamlPipelineInfo])
+async def list_yaml_pipelines():
+    """List all available YAML pipeline definitions."""
+    pipelines = pipeline_loader.list_available_pipelines()
+    return [YamlPipelineInfo(**p) for p in pipelines]
+
+
+@router.get("/yaml/{pipeline_name}/definition")
+async def get_yaml_pipeline_definition(pipeline_name: str):
+    """Get raw YAML pipeline definition by name."""
+    definition = pipeline_loader.get_pipeline_definition(pipeline_name)
+    if not definition:
+        raise HTTPException(status_code=404, detail=f"Pipeline '{pipeline_name}' not found")
+    return definition
+
+
+@router.post("/yaml/validate", response_model=ValidationResponse)
+async def validate_yaml_pipeline(body: ValidationRequest):
+    """Validate a pipeline YAML definition.
+
+    Checks:
+    - YAML syntax
+    - Schema structure
+    - Stage dependencies (no cycles)
+    - Template syntax
+    - API credentials (if validate_credentials=true)
+    """
+    result = await pipeline_validator.validate(
+        yaml_content=body.yaml_content,
+        validate_credentials=body.validate_credentials
+    )
+    return ValidationResponse(
+        valid=result.valid,
+        errors=[e.to_dict() for e in result.errors],
+        warnings=[w.to_dict() for w in result.warnings],
+        credential_status=result.credential_status,
+        estimated_duration_seconds=result.estimated_duration_seconds
+    )
+
+
+@router.post("/yaml/validate-credentials", response_model=CredentialValidationResponse)
+async def validate_credentials():
+    """Validate all configured API credentials.
+
+    Checks:
+    - GEMINI_API_KEY
+    - ANTHROPIC_API_KEY
+    - GITHUB_TOKEN
+
+    Returns status for each credential.
+    """
+    # Create a minimal pipeline to trigger credential validation
+    yaml_content = """
+name: credential-check
+stages:
+  - id: gemini
+    name: Gemini Check
+    persona: vision-reviewer
+    config:
+      model: gemini-3-flash-preview
+  - id: claude
+    name: Claude Check
+    persona: reviewer
+    config:
+      model: claude-sonnet-4-20250514
+  - id: github
+    name: GitHub Check
+    type: action
+    action: git.create_pr
+"""
+    result = await pipeline_validator.validate(
+        yaml_content=yaml_content,
+        validate_credentials=True
+    )
+
+    all_valid = all(v.get("valid", False) for v in result.credential_status.values())
+
+    return CredentialValidationResponse(
+        all_valid=all_valid,
+        credentials=result.credential_status
+    )
+
+
+@router.post("/yaml/{pipeline_name}/trigger", response_model=TriggerResponse)
+async def trigger_yaml_pipeline(
+    pipeline_name: str,
+    body: TriggerRequest,
+    background_tasks: BackgroundTasks
+):
+    """Trigger a YAML pipeline by name.
+
+    Loads the pipeline from the pipelines directory, validates it,
+    and executes it with the provided input parameters.
+
+    Args:
+        pipeline_name: Name of the pipeline (without .yaml extension)
+        body.input_params: Input parameters matching the pipeline's input schema
+        body.auto_approval: Skip approval gates for autonomous execution
+        body.validate_credentials: Validate API keys before execution
+
+    Returns:
+        Execution result with stage outputs and any errors.
+    """
+    import uuid
+
+    # Find the pipeline file
+    filename = f"{pipeline_name}.yaml"
+
+    try:
+        # Load and validate
+        pipeline_def, validation = await pipeline_loader.load_from_file(
+            filename,
+            validate=True,
+            validate_credentials=body.validate_credentials
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Pipeline '{pipeline_name}' not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Generate execution ID
+    execution_id = str(uuid.uuid4())
+
+    # Execute pipeline
+    result = await pipeline_executor.execute(
+        pipeline=pipeline_def,
+        input_params=body.input_params,
+        auto_approval=body.auto_approval
+    )
+
+    return TriggerResponse(
+        success=result.success,
+        pipeline_name=pipeline_name,
+        execution_id=execution_id,
+        stage_results={k: v.to_dict() for k, v in result.stage_results.items()},
+        outputs=result.outputs,
+        error=result.error,
+        duration_ms=result.duration_ms
+    )
+
+
+@router.post("/yaml/run")
+async def run_yaml_pipeline(
+    body: Dict[str, Any]
+):
+    """Run a pipeline from raw YAML content.
+
+    Args:
+        body.yaml_content: Raw YAML pipeline definition
+        body.input_params: Input parameters
+        body.auto_approval: Skip approval gates
+        body.validate_credentials: Validate API keys
+
+    Returns:
+        Execution result.
+    """
+    import uuid
+
+    yaml_content = body.get("yaml_content")
+    if not yaml_content:
+        raise HTTPException(status_code=400, detail="yaml_content is required")
+
+    input_params = body.get("input_params", {})
+    auto_approval = body.get("auto_approval", False)
+    validate_credentials = body.get("validate_credentials", True)
+
+    try:
+        pipeline_def, validation = await pipeline_loader.load_from_yaml(
+            yaml_content,
+            validate=True,
+            validate_credentials=validate_credentials
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    execution_id = str(uuid.uuid4())
+
+    result = await pipeline_executor.execute(
+        pipeline=pipeline_def,
+        input_params=input_params,
+        auto_approval=auto_approval
+    )
+
+    return {
+        "success": result.success,
+        "execution_id": execution_id,
+        "stage_results": {k: v.to_dict() for k, v in result.stage_results.items()},
+        "outputs": result.outputs,
+        "error": result.error,
+        "duration_ms": result.duration_ms
+    }
+
+
+# Progress tracking for streaming
+_execution_progress: Dict[str, List[Dict]] = {}
+
+
+@router.get("/yaml/execution/{execution_id}/stream")
+async def stream_execution_progress(execution_id: str):
+    """Stream execution progress as Server-Sent Events.
+
+    Connect to this endpoint before triggering a pipeline to
+    receive real-time progress updates.
+    """
+    async def event_generator():
+        # Initialize progress list if not exists
+        if execution_id not in _execution_progress:
+            _execution_progress[execution_id] = []
+
+        last_index = 0
+        timeout = 600  # 10 minute timeout
+        elapsed = 0
+
+        while elapsed < timeout:
+            # Check for new events
+            events = _execution_progress.get(execution_id, [])
+            if len(events) > last_index:
+                for event in events[last_index:]:
+                    yield f"data: {json.dumps(event)}\n\n"
+                last_index = len(events)
+
+                # Check if completed
+                if events and events[-1].get("status") in ["completed", "failed"]:
+                    break
+
+            await asyncio.sleep(0.5)
+            elapsed += 0.5
+
+        # Cleanup
+        if execution_id in _execution_progress:
+            del _execution_progress[execution_id]
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
     )

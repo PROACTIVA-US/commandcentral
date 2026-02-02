@@ -1,0 +1,546 @@
+# UX/UI Visual Review Pipeline
+# Orchestrates visual review of UI with Gemini 3 Flash Agentic Vision
+#
+# Pipeline Flow:
+#   1. Scan project for UI components/screens
+#   2. Launch application in Chrome for Testing
+#   3. Capture screenshots of all key screens/states
+#   4. Visual review with Gemini 3 Flash Agentic Vision
+#   5. Validate against UX/UI skill rules
+#   6. Generate fixes for violations
+#   7. Create PR with annotated screenshots
+#   8. Re-review PR changes
+#   9. Auto-merge if passes
+
+name: ux-ui-visual-review
+display_name: UX/UI Visual Review Pipeline
+description: |
+  Automated visual review pipeline using Gemini 3 Flash Agentic Vision.
+
+  Combines browser automation (Chrome for Testing) with vision AI to:
+  - Capture and analyze UI screenshots
+  - Zoom into fine-grained details (buttons, spacing, colors)
+  - Annotate violations with bounding boxes
+  - Generate code fixes for issues found
+  - Create PRs with visual evidence
+
+  Supports auto-approval mode for fully autonomous operation.
+
+version: "1.0.0"
+category: ui-review
+
+# Pipeline-level configuration
+config:
+  on_failure: stop  # Visual review requires all stages to pass
+  max_retries: 2
+  retry_delay_seconds: 10
+
+  # Auto-approval mode (skip human approval gates)
+  auto_approval: "${AUTO_APPROVAL:-false}"
+
+  # Vision model configuration
+  vision_model: gemini-2.5-flash-preview-05-20
+  vision_code_execution: true  # Enable Agentic Vision
+
+  # Browser configuration
+  browser: chrome-for-testing
+  browser_headless: false  # Need visible for screenshots
+  browser_viewport:
+    width: 1920
+    height: 1080
+
+# Input schema
+input:
+  type: object
+  required:
+    - project_path
+  properties:
+    project_path:
+      type: string
+      description: Path to the project to review (e.g., /Users/danielconnolly/Projects/PropertyManager)
+    app_url:
+      type: string
+      description: URL where the app is running (e.g., http://localhost:3000)
+      default: "http://localhost:3000"
+    auto_approval:
+      type: boolean
+      description: Skip approval gates for autonomous operation
+      default: false
+    target_branch:
+      type: string
+      description: Branch to create PR against
+      default: "main"
+    screens:
+      type: array
+      description: Optional list of specific screens/routes to review
+      items:
+        type: object
+        properties:
+          path:
+            type: string
+          name:
+            type: string
+
+# Output schema
+output:
+  type: object
+  properties:
+    scan_result:
+      type: object
+      description: UI component scan results
+    screenshots:
+      type: array
+      description: Captured screenshots with metadata
+    violations:
+      type: array
+      description: UX/UI violations found
+    fixes:
+      type: array
+      description: Generated code fixes
+    pr_url:
+      type: string
+      description: URL of created pull request
+    review_passed:
+      type: boolean
+      description: Whether final review passed
+
+# Pipeline stages
+stages:
+  # Stage 1: Scan project for UI components
+  - id: scan_ui
+    name: UI Component Scan
+    persona: ui-scanner
+    description: Discover UI components, routes, and screens in the project
+
+    config:
+      model: gemini-2.5-flash-preview-05-20
+      temperature: 0.2
+
+    input_template: |
+      Scan the project for UI components and screens:
+
+      Project Path: {{ input.project_path }}
+
+      Find:
+      1. All React/Vue/Angular components
+      2. Route definitions
+      3. Page components
+      4. Key UI entry points
+
+      Return a structured list of screens to capture.
+
+    output_mapping:
+      components: "$.components"
+      routes: "$.routes"
+      screens: "$.screens"
+      tech_stack: "$.tech_stack"
+
+    timeout_seconds: 120
+    required: true
+
+  # Stage 2: Launch application
+  - id: launch_app
+    name: Launch Application
+    type: action
+    description: Start the application for visual testing
+
+    depends_on:
+      - scan_ui
+
+    action: browser.launch_app
+
+    input_template:
+      project_path: "{{ input.project_path }}"
+      app_url: "{{ input.app_url }}"
+      browser: "chrome-for-testing"
+      wait_for_ready: true
+      ready_check_url: "{{ input.app_url }}/health"
+      ready_timeout_seconds: 60
+
+    output_mapping:
+      browser_context_id: "$.context_id"
+      tab_id: "$.tab_id"
+
+    timeout_seconds: 120
+    required: true
+
+  # Stage 3: Capture screenshots
+  - id: capture_screenshots
+    name: Screenshot Capture
+    type: action
+    description: Navigate to each screen and capture screenshots
+
+    depends_on:
+      - launch_app
+      - scan_ui
+
+    action: browser.capture_screenshots
+
+    input_template:
+      tab_id: "{{ stages.launch_app.output.tab_id }}"
+      base_url: "{{ input.app_url }}"
+      screens: "{{ stages.scan_ui.output.screens }}"
+      capture_states:
+        - default
+        - hover
+        - focus
+        - loading
+        - error
+      viewport:
+        width: 1920
+        height: 1080
+
+    output_mapping:
+      screenshots: "$.screenshots"
+      screenshot_paths: "$.paths"
+
+    timeout_seconds: 300
+    required: true
+
+  # Stage 4: Visual review with Gemini 3 Flash Agentic Vision
+  - id: visual_review
+    name: Visual Review (Gemini 3 Flash)
+    persona: vision-reviewer
+    description: Analyze screenshots with Agentic Vision - zoom, inspect, annotate
+
+    depends_on:
+      - capture_screenshots
+
+    input_template: |
+      Perform visual review of these UI screenshots using Agentic Vision.
+
+      Screenshots: {{ stages.capture_screenshots.output.screenshots | tojson }}
+
+      For EACH screenshot:
+      1. THINK: Formulate a plan to check all UX/UI rules
+      2. ACT: Use code execution to:
+         - Zoom into small UI elements (buttons, icons, text)
+         - Measure spacing between elements
+         - Extract colors and check semantic mapping
+         - Identify touch target sizes
+         - Annotate issues with bounding boxes
+      3. OBSERVE: Inspect zoomed/annotated images
+
+      Check against these rules:
+
+      P0 (Blocking):
+      - Semantic Color Mapping (green=success, red=error, yellow=warning, blue=info)
+      - Visual Hierarchy (important elements prominent)
+      - Data Display Alignment (numbers right-aligned, text left-aligned)
+      - Icon + Text Pairing (icons must have labels)
+
+      P1 (Required):
+      - Spacing Consistency (4px scale: 4,8,12,16,24,32,48)
+      - Card Consistency (uniform styling)
+      - Touch Target Size (minimum 44x44px)
+      - Loading State Consistency
+      - Focus State Visibility
+
+      Return annotated screenshots with violations marked.
+
+    config:
+      model: gemini-2.5-flash-preview-05-20
+      tools:
+        - code_execution  # Enable Agentic Vision
+      temperature: 0.1
+
+    output_mapping:
+      violations: "$.violations"
+      annotated_screenshots: "$.annotated_screenshots"
+      severity_summary: "$.severity_summary"
+
+    timeout_seconds: 600
+    required: true
+
+  # Stage 5: Validate against UX/UI skills
+  - id: skill_validation
+    name: Skill Validation
+    type: action
+    description: Run UX governance and UI design validation skills
+
+    depends_on:
+      - visual_review
+
+    action: skills.validate
+
+    input_template:
+      project_path: "{{ input.project_path }}"
+      skills:
+        - ux-governance
+        - ui-design-validation
+        - progressive-disclosure
+      context:
+        visual_violations: "{{ stages.visual_review.output.violations }}"
+        annotated_screenshots: "{{ stages.visual_review.output.annotated_screenshots }}"
+
+    output_mapping:
+      skill_violations: "$.violations"
+      blocking_issues: "$.blocking"
+      passed: "$.passed"
+
+    timeout_seconds: 180
+    required: true
+
+  # Stage 6: Generate fixes
+  - id: generate_fixes
+    name: Generate Fixes
+    persona: fix-generator
+    description: Generate code fixes for all violations
+
+    config:
+      model: gemini-2.5-flash-preview-05-20
+      temperature: 0.2
+
+    depends_on:
+      - visual_review
+      - skill_validation
+
+    input_template: |
+      Generate code fixes for these UX/UI violations:
+
+      Project Path: {{ input.project_path }}
+      Tech Stack: {{ stages.scan_ui.output.tech_stack | tojson }}
+
+      Visual Violations:
+      {{ stages.visual_review.output.violations | tojson }}
+
+      Skill Violations:
+      {{ stages.skill_validation.output.skill_violations | tojson }}
+
+      Annotated Screenshots (reference for context):
+      {{ stages.visual_review.output.annotated_screenshots | tojson }}
+
+      For each violation:
+      1. Identify the component file
+      2. Generate the minimal fix
+      3. Ensure fix follows existing patterns
+      4. Preserve functionality
+
+      Return array of fixes with file paths and diffs.
+
+    output_mapping:
+      fixes: "$.fixes"
+      files_modified: "$.files_modified"
+
+    timeout_seconds: 300
+    required: true
+
+  # Stage 7: Apply fixes (in worktree)
+  - id: apply_fixes
+    name: Apply Fixes
+    type: action
+    description: Apply generated fixes in isolated worktree
+
+    depends_on:
+      - generate_fixes
+
+    action: git.apply_fixes_worktree
+
+    input_template:
+      project_path: "{{ input.project_path }}"
+      fixes: "{{ stages.generate_fixes.output.fixes }}"
+      branch_name: "ux-ui-review/{{ now() | date('YYYY-MM-DD-HHmm') }}"
+      base_branch: "{{ input.target_branch }}"
+
+    output_mapping:
+      worktree_path: "$.worktree_path"
+      branch_name: "$.branch_name"
+      commit_sha: "$.commit_sha"
+
+    timeout_seconds: 120
+    required: true
+
+  # Stage 8: Re-review fixed UI
+  - id: re_review
+    name: Re-Review Fixed UI
+    persona: vision-reviewer
+    description: Re-capture and verify fixes with Agentic Vision
+
+    depends_on:
+      - apply_fixes
+
+    input_template: |
+      Re-review the fixed UI to verify all violations are resolved.
+
+      Worktree Path: {{ stages.apply_fixes.output.worktree_path }}
+      Original Violations: {{ stages.visual_review.output.violations | tojson }}
+      Applied Fixes: {{ stages.generate_fixes.output.fixes | tojson }}
+
+      For each original violation:
+      1. Navigate to the affected screen
+      2. Capture new screenshot
+      3. Use Agentic Vision to verify the fix
+      4. Annotate with green checkmarks for resolved, red X for remaining
+
+      Return verification results.
+
+    config:
+      model: gemini-2.5-flash-preview-05-20
+      tools:
+        - code_execution
+      temperature: 0.1
+
+    output_mapping:
+      resolved: "$.resolved"
+      remaining: "$.remaining"
+      verification_screenshots: "$.screenshots"
+      passed: "$.passed"
+
+    timeout_seconds: 600
+    required: true
+
+  # Stage 9: Create PR
+  - id: create_pr
+    name: Create Pull Request
+    type: action
+    description: Create PR with annotated screenshots and fix summary
+
+    depends_on:
+      - re_review
+      - apply_fixes
+
+    # Only proceed if auto_approval OR re_review passed
+    condition: "{{ input.auto_approval or stages.re_review.output.passed }}"
+
+    action: git.create_pr
+
+    input_template:
+      project_path: "{{ input.project_path }}"
+      branch_name: "{{ stages.apply_fixes.output.branch_name }}"
+      base_branch: "{{ input.target_branch }}"
+      title: "fix(ux): Visual review fixes - {{ now() | date('YYYY-MM-DD') }}"
+      body: |
+        ## UX/UI Visual Review Fixes
+
+        This PR contains automated fixes from the UX/UI Visual Review Pipeline.
+
+        ### Violations Found
+        {{ stages.visual_review.output.violations | length }} issues detected
+
+        ### Fixes Applied
+        {{ stages.generate_fixes.output.fixes | length }} fixes generated
+
+        ### Files Modified
+        {% for file in stages.generate_fixes.output.files_modified %}
+        - {{ file }}
+        {% endfor %}
+
+        ### Verification
+        {% if stages.re_review.output.passed %}
+        ✅ All fixes verified with Agentic Vision
+        {% else %}
+        ⚠️ {{ stages.re_review.output.remaining | length }} issues require manual review
+        {% endif %}
+
+        ---
+        🤖 Generated by UX/UI Visual Review Pipeline
+        Vision Model: Gemini 3 Flash (Agentic Vision)
+      labels:
+        - ux-review
+        - automated
+      draft: "{{ not input.auto_approval }}"
+      screenshots: "{{ stages.visual_review.output.annotated_screenshots }}"
+
+    output_mapping:
+      pr_url: "$.url"
+      pr_number: "$.number"
+
+    timeout_seconds: 120
+    required: true
+
+  # Stage 10: Auto-merge (if auto_approval enabled)
+  - id: auto_merge
+    name: Auto-Merge PR
+    type: action
+    description: Automatically merge the PR if all checks pass
+
+    depends_on:
+      - create_pr
+      - re_review
+
+    # Only run if auto_approval AND re_review passed
+    condition: "{{ input.auto_approval and stages.re_review.output.passed }}"
+
+    action: git.merge_pr
+
+    input_template:
+      pr_number: "{{ stages.create_pr.output.pr_number }}"
+      project_path: "{{ input.project_path }}"
+      merge_method: "squash"
+      delete_branch: true
+
+    output_mapping:
+      merged: "$.merged"
+      merge_sha: "$.sha"
+
+    timeout_seconds: 60
+    required: false  # Pipeline succeeds even if merge requires review
+
+# Execution configuration
+execution:
+  parallel_groups:
+    - group: initial_analysis
+      stages:
+        - scan_ui
+
+    - group: capture
+      stages:
+        - launch_app
+        - capture_screenshots
+
+    - group: review
+      stages:
+        - visual_review
+        - skill_validation
+
+    - group: fix
+      stages:
+        - generate_fixes
+        - apply_fixes
+        - re_review
+
+    - group: finalize
+      stages:
+        - create_pr
+        - auto_merge
+
+  order:
+    - scan_ui
+    - launch_app
+    - capture_screenshots
+    - visual_review
+    - skill_validation
+    - generate_fixes
+    - apply_fixes
+    - re_review
+    - create_pr
+    - auto_merge
+
+# Hooks
+hooks:
+  on_start:
+    - log: "Starting UX/UI Visual Review for {{ input.project_path }}"
+    - log: "Auto-approval mode: {{ input.auto_approval }}"
+
+  on_stage_complete:
+    - log: "Stage {{ stage.id }} completed in {{ stage.duration_seconds }}s"
+
+  on_complete:
+    - log: "Pipeline completed. Violations: {{ output.violations | length }}, Fixes: {{ output.fixes | length }}"
+    - emit_event:
+        subject: "pipeline.ux_ui_review.completed"
+        payload:
+          project_path: "{{ input.project_path }}"
+          violations_count: "{{ output.violations | length }}"
+          fixes_count: "{{ output.fixes | length }}"
+          pr_url: "{{ output.pr_url }}"
+          passed: "{{ output.review_passed }}"
+
+  on_failure:
+    - log: "Pipeline failed at stage {{ failed_stage.id }}: {{ failed_stage.error }}"
+    - emit_event:
+        subject: "pipeline.ux_ui_review.failed"
+        payload:
+          project_path: "{{ input.project_path }}"
+          failed_stage: "{{ failed_stage.id }}"
+          error: "{{ failed_stage.error }}"

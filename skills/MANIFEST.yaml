@@ -15,6 +15,27 @@ updated: 2026-02-01
 
 skills:
   # P0 - Critical (Always Check)
+  - name: model-governance
+    path: skills/model-governance/SKILL.md
+    priority: P0
+    enforcement: blocking
+    keywords:
+      - model
+      - gemini
+      - claude
+      - anthropic
+      - google
+      - api
+      - version
+      - latest
+      - pipeline
+      - agent
+    file_patterns:
+      - "pipelzr/pipelines/**/*.yaml"
+      - "pipelzr/app/services/**"
+      - "**/agent*.py"
+    description: "MANDATORY - Always use latest model versions (Gemini 2.5, Claude Opus 4.5)"
+
   - name: skill-governance
     path: skills/skill-governance/SKILL.md
     priority: P0
@@ -80,6 +101,26 @@ skills:
       - "backend/app/routers/autonomous.py"
       - "scripts/*.sh"
     description: "How to run CommandCentral - startup, execution modes, pipeline, worktree pool"
+
+  - name: pipeline-validation
+    path: skills/pipeline-validation/SKILL.md
+    priority: P0
+    enforcement: blocking
+    keywords:
+      - pipeline
+      - yaml
+      - validation
+      - schema
+      - stages
+      - dependencies
+      - api key
+      - credentials
+      - gemini
+      - execution
+    file_patterns:
+      - "pipelzr/pipelines/**/*.yaml"
+      - "pipelzr/pipelines/**/*.yml"
+    description: "Validates pipeline YAML before execution - schema, deps, credentials, Gemini API keys"
 
   - name: ux-governance
     path: skills/ux-governance/SKILL.md
