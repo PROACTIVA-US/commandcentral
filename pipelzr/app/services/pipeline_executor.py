@@ -356,10 +356,10 @@ class PipelineExecutor:
         if not api_key:
             raise ValueError("GEMINI_API_KEY not set")
 
-        # MANDATORY: Use latest Gemini model (see skills/model-governance/SKILL.md)
-        model = config.get("model", "gemini-2.5-flash-preview-05-20")
+        # MANDATORY: Gemini 3 Flash for Agentic Vision (see skills/model-governance/SKILL.md)
+        model = config.get("model", "gemini-3.0-flash-preview")
 
-        logger.info("Executing Gemini 2.5 with code execution", model=model)
+        logger.info("Executing Gemini 3 Flash with Agentic Vision", model=model)
 
         # Use v1beta API for code execution feature
         async with httpx.AsyncClient(timeout=300.0) as client:

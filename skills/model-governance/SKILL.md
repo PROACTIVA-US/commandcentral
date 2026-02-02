@@ -40,9 +40,11 @@ NEVER use outdated models. Gemini: `gemini-2.5-flash-preview-05-20`. Claude: `cl
 ### Google Gemini
 | Use Case | Model ID | Notes |
 |----------|----------|-------|
-| **Vision/Agentic** | `gemini-2.5-flash-preview-05-20` | Code execution, multimodal |
-| **Fast Tasks** | `gemini-2.5-flash-preview-05-20` | Default for all Gemini |
+| **Agentic Vision** | `gemini-3.0-flash-preview` | Code execution, multimodal, REQUIRED for vision pipelines |
+| **Fast Tasks** | `gemini-2.5-flash-preview-05-20` | Standard tasks |
 | **Pro Tasks** | `gemini-2.5-pro-preview-05-06` | Complex reasoning |
+
+**CRITICAL**: Agentic Vision (code_execution tool) ONLY works with Gemini 3 Flash.
 
 ### Anthropic Claude
 | Use Case | Model ID | Notes |
@@ -58,8 +60,7 @@ These models are **BLOCKED** - using them is a skill violation:
 
 ```
 # BLOCKED Gemini Models
-gemini-2.0-flash          # Outdated
-gemini-3-flash-preview    # Does not exist
+gemini-2.0-flash          # Outdated - no agentic vision
 gemini-pro                # Outdated
 gemini-1.5-pro            # Outdated
 gemini-1.5-flash          # Outdated
@@ -118,7 +119,10 @@ When new models are released:
 Copy-paste ready model IDs:
 
 ```bash
-# Gemini (use for vision, code execution, general tasks)
+# Gemini 3 Flash - REQUIRED for Agentic Vision (code execution)
+export GEMINI_VISION="gemini-3.0-flash-preview"
+
+# Gemini 2.5 Flash - Standard tasks
 export GEMINI_MODEL="gemini-2.5-flash-preview-05-20"
 
 # Claude (use for complex reasoning, code review)
@@ -128,4 +132,4 @@ export CLAUDE_FAST="claude-sonnet-4-20250514"
 
 ---
 
-*Last updated: 2026-02-02 - Gemini 2.5 Flash, Claude Opus 4.5*
+*Last updated: 2026-02-02 - Gemini 3 Flash (Agentic Vision), Claude Opus 4.5*

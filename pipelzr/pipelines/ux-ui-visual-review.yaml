@@ -38,8 +38,8 @@ config:
   # Auto-approval mode (skip human approval gates)
   auto_approval: "${AUTO_APPROVAL:-false}"
 
-  # Vision model configuration
-  vision_model: gemini-2.5-flash-preview-05-20
+  # Vision model configuration - Gemini 3 Flash for Agentic Vision
+  vision_model: gemini-3.0-flash-preview
   vision_code_execution: true  # Enable Agentic Vision
 
   # Browser configuration
@@ -239,7 +239,7 @@ stages:
       Return annotated screenshots with violations marked.
 
     config:
-      model: gemini-2.5-flash-preview-05-20
+      model: gemini-3.0-flash-preview  # Gemini 3 Flash for Agentic Vision
       tools:
         - code_execution  # Enable Agentic Vision
       temperature: 0.1
@@ -375,7 +375,7 @@ stages:
       Return verification results.
 
     config:
-      model: gemini-2.5-flash-preview-05-20
+      model: gemini-3.0-flash-preview  # Gemini 3 Flash for Agentic Vision
       tools:
         - code_execution
       temperature: 0.1
