@@ -13,6 +13,7 @@ import os
 import asyncio
 import httpx
 import json
+import re
 from typing import Dict, List, Any, Optional, Callable, Awaitable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -325,6 +326,85 @@ class PipelineExecutor:
 
             return result
 
+    def _extract_json_from_text(self, text: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract JSON object from LLM text response.
+
+        LLMs often return JSON wrapped in markdown code blocks or with
+        explanatory text. This extracts the JSON portion.
+        """
+        if not text:
+            return None
+
+        # Try to find JSON in code blocks first (```json ... ``` or ``` ... ```)
+        code_block_patterns = [
+            r'```json\s*([\s\S]*?)\s*```',  # ```json ... ```
+            r'```\s*([\s\S]*?)\s*```',       # ``` ... ```
+        ]
+
+        for pattern in code_block_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                try:
+                    parsed = json.loads(match.strip())
+                    if isinstance(parsed, dict):
+                        logger.debug("Extracted JSON from code block")
+                        return parsed
+                except json.JSONDecodeError:
+                    continue
+
+        # Try to find raw JSON object (starts with { and ends with })
+        # Find the first { and last } to extract potential JSON
+        start_idx = text.find('{')
+        if start_idx != -1:
+            # Find matching closing brace
+            brace_count = 0
+            end_idx = -1
+            for i in range(start_idx, len(text)):
+                if text[i] == '{':
+                    brace_count += 1
+                elif text[i] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_idx = i
+                        break
+
+            if end_idx != -1:
+                potential_json = text[start_idx:end_idx + 1]
+                try:
+                    parsed = json.loads(potential_json)
+                    if isinstance(parsed, dict):
+                        logger.debug("Extracted JSON from raw text")
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
+
+        # Try to find JSON array
+        start_idx = text.find('[')
+        if start_idx != -1:
+            bracket_count = 0
+            end_idx = -1
+            for i in range(start_idx, len(text)):
+                if text[i] == '[':
+                    bracket_count += 1
+                elif text[i] == ']':
+                    bracket_count -= 1
+                    if bracket_count == 0:
+                        end_idx = i
+                        break
+
+            if end_idx != -1:
+                potential_json = text[start_idx:end_idx + 1]
+                try:
+                    parsed = json.loads(potential_json)
+                    if isinstance(parsed, list):
+                        logger.debug("Extracted JSON array from raw text")
+                        return {"items": parsed}  # Wrap in dict for consistency
+                except json.JSONDecodeError:
+                    pass
+
+        return None
+
     async def _execute_persona_stage(
         self,
         stage: StageDefinition,
@@ -343,14 +423,30 @@ class PipelineExecutor:
 
         # Check if this is a Gemini vision stage
         if "gemini" in model.lower() and "code_execution" in tools:
-            return await self._execute_gemini_agentic_vision(input_text, config)
+            result = await self._execute_gemini_agentic_vision(input_text, config)
         elif "gemini" in model.lower():
-            return await self._execute_gemini(input_text, config)
+            result = await self._execute_gemini(input_text, config)
         elif "claude" in model.lower():
-            return await self._execute_claude(input_text, config)
+            result = await self._execute_claude(input_text, config)
         else:
             # Default to Claude
-            return await self._execute_claude(input_text, config)
+            result = await self._execute_claude(input_text, config)
+
+        # Extract JSON from text response and merge into output
+        # This allows stages to reference structured data like stages.X.output.fixes
+        text_content = result.get("text", "")
+        extracted_json = self._extract_json_from_text(text_content)
+
+        if extracted_json:
+            logger.info(
+                "Extracted structured data from LLM response",
+                stage=stage.id,
+                keys=list(extracted_json.keys())
+            )
+            # Merge extracted JSON into result (text and model remain, JSON fields added)
+            result.update(extracted_json)
+
+        return result
 
     async def _execute_gemini_agentic_vision(
         self,
@@ -387,10 +483,22 @@ class PipelineExecutor:
 
             result = response.json()
 
+            # Log full response for debugging
+            logger.debug("Gemini Agentic Vision response", response=result)
+
             # Extract response
             candidates = result.get("candidates", [])
             if not candidates:
-                raise ValueError("No response from Gemini")
+                # Check for errors in response
+                error_info = result.get("error", {})
+                prompt_feedback = result.get("promptFeedback", {})
+                logger.error(
+                    "Gemini returned no candidates",
+                    error=error_info,
+                    prompt_feedback=prompt_feedback,
+                    full_response=result
+                )
+                raise ValueError(f"No response from Gemini: {error_info or prompt_feedback or 'empty candidates'}")
 
             content = candidates[0].get("content", {})
             parts = content.get("parts", [])
@@ -534,12 +642,67 @@ class PipelineExecutor:
     def _resolve_template_dict(self, data: Any, context: ExecutionContext) -> Any:
         """Recursively resolve templates in a dict/list structure."""
         if isinstance(data, str):
+            # Check if this is a simple variable reference like "{{ stages.x.output.y }}"
+            # In that case, we want to preserve the original object (list/dict)
+            simple_var_pattern = r'^\s*\{\{\s*([\w.]+)\s*\}\}\s*$'
+            match = re.match(simple_var_pattern, data)
+            if match:
+                # Extract the variable path and resolve it directly
+                var_path = match.group(1)
+                try:
+                    value = self._resolve_variable_path(var_path, context)
+                    if value is not None:
+                        return value
+                except Exception:
+                    pass  # Fall through to template resolution
             return self._resolve_template(data, context)
         elif isinstance(data, dict):
             return {k: self._resolve_template_dict(v, context) for k, v in data.items()}
         elif isinstance(data, list):
             return [self._resolve_template_dict(item, context) for item in data]
         return data
+
+    def _resolve_variable_path(self, path: str, context: ExecutionContext) -> Any:
+        """
+        Resolve a dotted variable path to its actual value.
+
+        Examples:
+          - "input.project_path" -> context.input_params["project_path"]
+          - "stages.generate_fixes.output.fixes" -> context.stage_outputs["generate_fixes"]["fixes"]
+        """
+        parts = path.split('.')
+        if not parts:
+            return None
+
+        # Start with the root object
+        if parts[0] == "input":
+            obj = context.input_params
+            parts = parts[1:]
+        elif parts[0] == "stages":
+            if len(parts) < 2:
+                return None
+            stage_id = parts[1]
+            obj = context.stage_outputs.get(stage_id)
+            parts = parts[2:]
+            # Handle "output" prefix (stages.X.output.Y)
+            if parts and parts[0] == "output":
+                parts = parts[1:]
+        elif parts[0] == "config":
+            obj = context.pipeline.config
+            parts = parts[1:]
+        else:
+            return None
+
+        # Navigate the path
+        for part in parts:
+            if obj is None:
+                return None
+            if isinstance(obj, dict):
+                obj = obj.get(part)
+            else:
+                return None
+
+        return obj
 
     def _evaluate_condition(self, condition: str, context: ExecutionContext) -> bool:
         """Evaluate a condition expression."""

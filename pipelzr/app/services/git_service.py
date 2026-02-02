@@ -175,9 +175,25 @@ class GitService:
         applied = []
         failed = []
 
-        for fix in fixes:
-            file_path = fix.get("file_path", "")
-            diff = fix.get("diff", "")
+        logger.info("apply_fixes called", fixes_count=len(fixes) if fixes else 0, fixes_type=type(fixes).__name__)
+
+        if not fixes:
+            return {"applied": [], "failed": [], "total": 0}
+
+        for i, fix in enumerate(fixes):
+            # Handle case where fix is not a dict
+            if isinstance(fix, str):
+                logger.warning(f"Fix {i} is a string, skipping", fix_preview=fix[:100] if len(fix) > 100 else fix)
+                failed.append({"file": f"fix_{i}", "error": "Fix was a string, not a dict"})
+                continue
+
+            if not isinstance(fix, dict):
+                logger.warning(f"Fix {i} is not a dict", fix_type=type(fix).__name__)
+                failed.append({"file": f"fix_{i}", "error": f"Fix was {type(fix).__name__}, not a dict"})
+                continue
+
+            file_path = fix.get("file_path", "") or fix.get("file", "") or fix.get("path", "")
+            diff = fix.get("diff", "") or fix.get("patch", "") or fix.get("content", "")
 
             if not file_path:
                 continue
@@ -353,8 +369,21 @@ async def action_git_apply_fixes(
     context: Any
 ) -> Dict[str, Any]:
     """Apply fixes in git worktree."""
+    logger.info("action_git_apply_fixes input_data", input_data=input_data)
+
     project_path = input_data.get("project_path", "")
     fixes = input_data.get("fixes", [])
+
+    # Handle case where fixes is a string (from LLM output)
+    if isinstance(fixes, str):
+        logger.warning("fixes is a string, attempting to parse as JSON", fixes_preview=fixes[:200])
+        import json
+        try:
+            fixes = json.loads(fixes)
+        except json.JSONDecodeError:
+            logger.error("Failed to parse fixes as JSON")
+            fixes = []
+
     branch_name = input_data.get("branch_name") or f"fix/pipeline-{datetime.now().strftime('%Y%m%d-%H%M')}"
     base_branch = input_data.get("base_branch") or "main"
 
