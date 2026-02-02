@@ -31,7 +31,7 @@ contract:
 
 ## Essence (50 words)
 
-NEVER use outdated models. Gemini: `gemini-2.5-flash-preview-05-20`. Claude: `claude-opus-4-5-20251101` or `claude-sonnet-4-20250514`. Check this skill BEFORE any pipeline or agent configuration. Outdated models = BLOCKED. This is non-negotiable.
+NEVER use outdated models. Gemini: `gemini-2.5-flash`. Claude: `claude-opus-4-5-20251101` or `claude-sonnet-4-20250514`. Check this skill BEFORE any pipeline or agent configuration. Outdated models = BLOCKED. This is non-negotiable.
 
 ---
 
@@ -40,8 +40,8 @@ NEVER use outdated models. Gemini: `gemini-2.5-flash-preview-05-20`. Claude: `cl
 ### Google Gemini
 | Use Case | Model ID | Notes |
 |----------|----------|-------|
-| **Agentic Vision** | `gemini-3.0-flash-preview` | Code execution, multimodal, REQUIRED for vision pipelines |
-| **Fast Tasks** | `gemini-2.5-flash-preview-05-20` | Standard tasks |
+| **Agentic Vision** | `gemini-3-flash-preview` | Code execution, multimodal, REQUIRED for vision pipelines |
+| **Fast Tasks** | `gemini-2.5-flash` | Standard tasks |
 | **Pro Tasks** | `gemini-2.5-pro-preview-05-06` | Complex reasoning |
 
 **CRITICAL**: Agentic Vision (code_execution tool) ONLY works with Gemini 3 Flash.
@@ -85,7 +85,7 @@ claude-2                  # Outdated
 ```yaml
 # CORRECT
 config:
-  model: gemini-2.5-flash-preview-05-20
+  model: gemini-2.5-flash
 
 # WRONG - BLOCKED
 config:
@@ -120,10 +120,10 @@ Copy-paste ready model IDs:
 
 ```bash
 # Gemini 3 Flash - REQUIRED for Agentic Vision (code execution)
-export GEMINI_VISION="gemini-3.0-flash-preview"
+export GEMINI_VISION="gemini-3-flash-preview"
 
 # Gemini 2.5 Flash - Standard tasks
-export GEMINI_MODEL="gemini-2.5-flash-preview-05-20"
+export GEMINI_MODEL="gemini-2.5-flash"
 
 # Claude (use for complex reasoning, code review)
 export CLAUDE_MODEL="claude-opus-4-5-20251101"

@@ -361,12 +361,28 @@ async def action_browser_screenshots(
 ) -> Dict[str, Any]:
     """Capture screenshots of screens."""
     base_url = input_data.get("base_url", "http://localhost:3000")
-    screens = input_data.get("screens", [{"path": "/", "name": "home"}])
+    raw_screens = input_data.get("screens")
     viewport = input_data.get("viewport", {"width": 1920, "height": 1080})
+
+    # Handle various input formats for screens
+    screens = []
+    if isinstance(raw_screens, list):
+        for s in raw_screens:
+            if isinstance(s, dict) and "path" in s:
+                screens.append(s)
+            elif isinstance(s, str):
+                screens.append({"path": s, "name": s.replace("/", "_").strip("_") or "home"})
+    elif isinstance(raw_screens, str):
+        # If it's a string, try to parse common paths
+        screens = [{"path": "/", "name": "home"}]
+
+    # Default to home if no valid screens
+    if not screens:
+        screens = [{"path": "/", "name": "home"}]
 
     screenshots = await browser_service.capture_screens(
         base_url=base_url,
-        screens=screens if screens else [{"path": "/", "name": "home"}],
+        screens=screens,
         viewport=viewport
     )
 

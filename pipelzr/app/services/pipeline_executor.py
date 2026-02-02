@@ -114,6 +114,12 @@ class PipelineExecutor:
 
     def __init__(self):
         self.jinja_env = Environment(loader=BaseLoader())
+        # Add datetime functions to Jinja2
+        self.jinja_env.globals['now'] = datetime.utcnow
+        self.jinja_env.filters['date'] = lambda dt, fmt: dt.strftime(
+            fmt.replace('YYYY', '%Y').replace('MM', '%m').replace('DD', '%d')
+            .replace('HH', '%H').replace('mm', '%M').replace('ss', '%S')
+        )
         self._action_handlers: Dict[str, Callable] = {}
         self._register_default_actions()
 
@@ -357,7 +363,7 @@ class PipelineExecutor:
             raise ValueError("GEMINI_API_KEY not set")
 
         # MANDATORY: Gemini 3 Flash for Agentic Vision (see skills/model-governance/SKILL.md)
-        model = config.get("model", "gemini-3.0-flash-preview")
+        model = config.get("model", "gemini-3-flash-preview")
 
         logger.info("Executing Gemini 3 Flash with Agentic Vision", model=model)
 
@@ -425,7 +431,7 @@ class PipelineExecutor:
             raise ValueError("GEMINI_API_KEY not set")
 
         # MANDATORY: Use latest Gemini model (see skills/model-governance/SKILL.md)
-        model = config.get("model", "gemini-2.5-flash-preview-05-20")
+        model = config.get("model", "gemini-2.5-flash")
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
