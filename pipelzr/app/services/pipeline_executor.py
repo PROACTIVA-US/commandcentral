@@ -336,22 +336,46 @@ class PipelineExecutor:
         if not text:
             return None
 
+        logger.warning(f"DEBUG: Extracting JSON from text of length {len(text)}")
+
+        # Check for code blocks
+        has_code_block = '```' in text
+        logger.warning(f"DEBUG: Has code block markers: {has_code_block}")
+
         # Try to find JSON in code blocks first (```json ... ``` or ``` ... ```)
         code_block_patterns = [
             r'```json\s*([\s\S]*?)\s*```',  # ```json ... ```
-            r'```\s*([\s\S]*?)\s*```',       # ``` ... ```
+            r'```\s*\n?([\s\S]*?)\n?\s*```',  # ``` ... ``` with optional newlines
         ]
 
         for pattern in code_block_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            for match in matches:
+            matches = re.findall(pattern, text, re.IGNORECASE | re.MULTILINE)
+            logger.warning(f"DEBUG: Pattern matched {len(matches)} times, matches: {[m[:30] if isinstance(m, str) else str(m)[:30] for m in matches]}")
+            for i, match in enumerate(matches):
+                content = match.strip() if isinstance(match, str) else str(match).strip()
+                logger.warning(f"DEBUG: Match {i} content length: {len(content)}, first 100 chars: {repr(content[:100])}")
+                # Try to find valid JSON within the match
                 try:
-                    parsed = json.loads(match.strip())
+                    parsed = json.loads(content)
                     if isinstance(parsed, dict):
-                        logger.debug("Extracted JSON from code block")
+                        logger.warning(f"DEBUG: Extracted JSON, keys: {list(parsed.keys())}")
                         return parsed
-                except json.JSONDecodeError:
-                    continue
+                except json.JSONDecodeError as e:
+                    logger.warning(f"DEBUG: JSON parse failed: {e}")
+                    # Try to find JSON object within the content
+                    if '{' in content:
+                        try:
+                            # Find the first { to last }
+                            start = content.find('{')
+                            end = content.rfind('}')
+                            if start != -1 and end != -1 and end > start:
+                                inner = content[start:end+1]
+                                parsed = json.loads(inner)
+                                if isinstance(parsed, dict):
+                                    logger.info(f"Extracted JSON from inner code block, keys: {list(parsed.keys())}")
+                                    return parsed
+                        except json.JSONDecodeError:
+                            continue
 
         # Try to find raw JSON object (starts with { and ends with })
         # Find the first { and last } to extract potential JSON
@@ -445,6 +469,12 @@ class PipelineExecutor:
             )
             # Merge extracted JSON into result (text and model remain, JSON fields added)
             result.update(extracted_json)
+        else:
+            logger.warning(
+                "No JSON extracted from LLM response",
+                stage=stage.id,
+                text_preview=text_content[:200] if text_content else "empty"
+            )
 
         return result
 
@@ -644,17 +674,21 @@ class PipelineExecutor:
         if isinstance(data, str):
             # Check if this is a simple variable reference like "{{ stages.x.output.y }}"
             # In that case, we want to preserve the original object (list/dict)
-            simple_var_pattern = r'^\s*\{\{\s*([\w.]+)\s*\}\}\s*$'
+            simple_var_pattern = r'^\s*\{\{\s*([\w_.]+)\s*\}\}\s*$'
             match = re.match(simple_var_pattern, data)
             if match:
                 # Extract the variable path and resolve it directly
                 var_path = match.group(1)
+                logger.debug(f"Resolving variable path: {var_path}")
                 try:
                     value = self._resolve_variable_path(var_path, context)
+                    logger.debug(f"Variable path {var_path} resolved to: {type(value).__name__}")
                     if value is not None:
                         return value
-                except Exception:
-                    pass  # Fall through to template resolution
+                    else:
+                        logger.warning(f"Variable path {var_path} resolved to None")
+                except Exception as e:
+                    logger.warning(f"Variable path resolution failed for {var_path}: {e}")
             return self._resolve_template(data, context)
         elif isinstance(data, dict):
             return {k: self._resolve_template_dict(v, context) for k, v in data.items()}

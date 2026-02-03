@@ -8,6 +8,13 @@ Provides persistent browser automation for pipelines:
 - Integrates with pipeline executor actions
 
 Uses Chrome DevTools Protocol (CDP) for reliable automation.
+
+Configuration from: skills/operations/chrome-for-testing-setup.md
+Key requirements:
+- Persistent profile (~/.chrome-for-testing-profile) for login/session state
+- Claude extension loaded from regular Chrome installation
+- Remote debugging port 9222 for auto-authorization
+- Launch script: ~/.claude/launch-chrome-for-testing.sh
 """
 
 import os
@@ -23,14 +30,37 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-# Default Chrome for Testing paths
+# =============================================================================
+# Chrome for Testing Configuration
+# From: skills/operations/chrome-for-testing-setup.md
+#
+# Key requirements:
+# - Use persistent profile for login/session state
+# - Load Claude extension from regular Chrome
+# - Enable remote debugging port 9222 for auto-authorization
+# - Use Chrome for Testing (not regular Chrome)
+# =============================================================================
+
+# Chrome for Testing paths (ordered by preference)
 CHROME_PATHS = [
+    # Puppeteer-installed Chrome for Testing (preferred)
+    os.path.expanduser("~/.cache/puppeteer/chrome/mac_arm-141.0.7390.54/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
+    os.path.expanduser("~/.cache/puppeteer/chrome/mac_arm-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
+    # Fallbacks
     "/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    os.path.expanduser("~/.cache/puppeteer/chrome/mac_arm-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
     "/usr/bin/google-chrome",
     "/usr/bin/chromium-browser",
 ]
+
+# Persistent profile directory (preserves logins across restarts)
+PROFILE_DIR = os.path.expanduser("~/.chrome-for-testing-profile")
+
+# Claude extension path (loaded from regular Chrome installation)
+CLAUDE_EXTENSION_ID = "fcoeoabgfenejglbffodgkkbkcdhcgfn"
+CLAUDE_EXTENSION_BASE = os.path.expanduser(
+    f"~/Library/Application Support/Google/Chrome/Default/Extensions/{CLAUDE_EXTENSION_ID}"
+)
 
 # Screenshots directory
 SCREENSHOTS_DIR = Path("/tmp/pipelzr-screenshots")
@@ -85,13 +115,55 @@ class BrowserService:
                 return pattern
         return None
 
+    def _find_claude_extension(self) -> Optional[str]:
+        """Find latest Claude extension version."""
+        import glob
+        if os.path.exists(CLAUDE_EXTENSION_BASE):
+            versions = glob.glob(os.path.join(CLAUDE_EXTENSION_BASE, "*"))
+            if versions:
+                # Return the latest version
+                return sorted(versions)[-1]
+        return None
+
     async def ensure_browser(self) -> BrowserContext:
-        """Ensure browser is running and ready."""
+        """
+        Ensure Chrome for Testing is running with proper configuration.
+
+        Configuration from: skills/operations/chrome-for-testing-setup.md
+        - Uses persistent profile for login/session state
+        - Loads Claude extension for MCP integration
+        - Enables remote debugging port 9222 for auto-authorization
+        """
         async with self._lock:
             if self.context and self.context.ready:
                 return self.context
 
-            # Start new browser
+            debug_port = 9222
+
+            # Check if Chrome for Testing is already running on debug port
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        f"http://localhost:{debug_port}/json/version",
+                        timeout=2.0
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        self.context = BrowserContext(
+                            process=None,  # External process
+                            debug_port=debug_port,
+                            ws_url=data.get("webSocketDebuggerUrl"),
+                            ready=True
+                        )
+                        logger.info(
+                            "Connected to existing Chrome for Testing",
+                            debug_port=debug_port
+                        )
+                        return self.context
+            except Exception:
+                pass  # Need to start browser
+
+            # Find Chrome for Testing
             chrome_path = self._find_chrome()
             if not chrome_path:
                 raise RuntimeError(
@@ -99,31 +171,39 @@ class BrowserService:
                     "npx @puppeteer/browsers install chrome@stable"
                 )
 
-            debug_port = 9222
+            # Find Claude extension
+            extension_path = self._find_claude_extension()
 
-            # Kill any existing Chrome on debug port
-            subprocess.run(
-                ["lsof", "-ti", f":{debug_port}"],
-                capture_output=True
-            )
+            # Ensure persistent profile directory exists
+            os.makedirs(PROFILE_DIR, exist_ok=True)
 
-            # Start Chrome with debugging
+            # Build Chrome arguments per skill requirements
+            chrome_args = [
+                chrome_path,
+                f"--user-data-dir={PROFILE_DIR}",
+                f"--remote-debugging-port={debug_port}",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--window-size=1920,1080",
+            ]
+
+            # Load Claude extension if available
+            if extension_path:
+                chrome_args.extend([
+                    f"--load-extension={extension_path}",
+                    f"--disable-extensions-except={extension_path}",
+                ])
+                logger.info("Loading Claude extension", path=extension_path)
+            else:
+                chrome_args.append("--disable-extensions")
+                logger.warning("Claude extension not found, running without it")
+
+            chrome_args.append("about:blank")
+
+            # Start Chrome for Testing
+            logger.info("Starting Chrome for Testing", chrome=chrome_path)
             process = subprocess.Popen(
-                [
-                    chrome_path,
-                    f"--remote-debugging-port={debug_port}",
-                    "--no-first-run",
-                    "--no-default-browser-check",
-                    "--disable-background-networking",
-                    "--disable-sync",
-                    "--disable-translate",
-                    "--disable-extensions",
-                    "--disable-popup-blocking",
-                    "--disable-infobars",
-                    "--window-size=1920,1080",
-                    "--user-data-dir=/tmp/pipelzr-chrome-profile",
-                    "about:blank"
-                ],
+                chrome_args,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
