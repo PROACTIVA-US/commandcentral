@@ -336,46 +336,49 @@ class PipelineExecutor:
         if not text:
             return None
 
-        logger.warning(f"DEBUG: Extracting JSON from text of length {len(text)}")
+        # Direct approach: find JSON object/array patterns in the text
+        # This is more robust than relying on specific code block formatting
+        logger.warning(f"Extracting JSON from text length {len(text)}")
 
-        # Check for code blocks
-        has_code_block = '```' in text
-        logger.warning(f"DEBUG: Has code block markers: {has_code_block}")
-
-        # Try to find JSON in code blocks first (```json ... ``` or ``` ... ```)
-        code_block_patterns = [
-            r'```json\s*([\s\S]*?)\s*```',  # ```json ... ```
-            r'```\s*\n?([\s\S]*?)\n?\s*```',  # ``` ... ``` with optional newlines
+        # First, try to find a JSON object that starts with {"fixes" or {"violations" etc.
+        json_start_patterns = [
+            r'\{\s*"fixes"\s*:',
+            r'\{\s*"violations"\s*:',
+            r'\{\s*"components"\s*:',
+            r'\{\s*"screens"\s*:',
         ]
 
-        for pattern in code_block_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE | re.MULTILINE)
-            logger.warning(f"DEBUG: Pattern matched {len(matches)} times, matches: {[m[:30] if isinstance(m, str) else str(m)[:30] for m in matches]}")
-            for i, match in enumerate(matches):
-                content = match.strip() if isinstance(match, str) else str(match).strip()
-                logger.warning(f"DEBUG: Match {i} content length: {len(content)}, first 100 chars: {repr(content[:100])}")
-                # Try to find valid JSON within the match
-                try:
-                    parsed = json.loads(content)
-                    if isinstance(parsed, dict):
-                        logger.warning(f"DEBUG: Extracted JSON, keys: {list(parsed.keys())}")
-                        return parsed
-                except json.JSONDecodeError as e:
-                    logger.warning(f"DEBUG: JSON parse failed: {e}")
-                    # Try to find JSON object within the content
-                    if '{' in content:
-                        try:
-                            # Find the first { to last }
-                            start = content.find('{')
-                            end = content.rfind('}')
-                            if start != -1 and end != -1 and end > start:
-                                inner = content[start:end+1]
-                                parsed = json.loads(inner)
-                                if isinstance(parsed, dict):
-                                    logger.info(f"Extracted JSON from inner code block, keys: {list(parsed.keys())}")
-                                    return parsed
-                        except json.JSONDecodeError:
-                            continue
+        for pattern in json_start_patterns:
+            match = re.search(pattern, text, re.DOTALL)
+            logger.warning(f"Pattern {pattern[:15]}... match: {match is not None}")
+            if match:
+                # Found a potential JSON start, now find the matching closing brace
+                start_idx = match.start()
+                brace_count = 0
+                end_idx = -1
+                logger.warning(f"Found match at index {start_idx}")
+
+                for i in range(start_idx, len(text)):
+                    if text[i] == '{':
+                        brace_count += 1
+                    elif text[i] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_idx = i
+                            break
+
+                logger.warning(f"Brace matching: end_idx={end_idx}, json_len={end_idx - start_idx + 1 if end_idx != -1 else 0}")
+
+                if end_idx != -1:
+                    json_str = text[start_idx:end_idx + 1]
+                    logger.warning(f"JSON string first 100 chars: {repr(json_str[:100])}")
+                    try:
+                        parsed = json.loads(json_str)
+                        if isinstance(parsed, dict):
+                            logger.warning(f"SUCCESS: Extracted JSON, keys: {list(parsed.keys())}")
+                            return parsed
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"JSON parse failed: {e}, trying to clean...")
 
         # Try to find raw JSON object (starts with { and ends with })
         # Find the first { and last } to extract potential JSON
